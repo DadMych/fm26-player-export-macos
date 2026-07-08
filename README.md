@@ -4,7 +4,7 @@ A community fork of [**FM26 Player Export by vinteset**](https://www.fmscout.com
 
 Published at **[github.com/DadMych/fm26-player-export-macos](https://github.com/DadMych/fm26-player-export-macos)**.
 
-Pair with **[TFP FM](https://github.com/DadMych/tfp_fm)** scouting analytics *(currently in development)* — upload the exported CSV to get archetypes, squad analysis, and transfer advice.
+Pair with **[TFP FM](https://github.com/DadMych/tfp_fm)** scouting analytics *(currently in development)* — upload the exported CSV to get archetypes, squad analysis, and transfer advice. Support: **[buymeacoffee.com/tfpdev](https://buymeacoffee.com/tfpdev)**.
 
 ---
 
@@ -200,6 +200,16 @@ FM26_GAME="/path/to/Football Manager 26" bash install_macos.sh
 | `No space left on device` | BepInEx cannot flush logs or write CSV — free several GB |
 
 Logs: `Football Manager 26/BepInEx/LogOutput.log` — look for `[FM26Export]` lines.
+
+---
+
+## Support
+
+If this saved you a few hours of crashing, a coffee helps keep [TFP FM / tfpdev](https://buymeacoffee.com/tfpdev) going:
+
+**[buymeacoffee.com/tfpdev](https://buymeacoffee.com/tfpdev)**
+
+No paywall on the plugin — MIT, free forever.
 
 ---
 
