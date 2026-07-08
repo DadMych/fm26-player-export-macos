@@ -1,16 +1,26 @@
-# TFP FM view presets
+# TFP FM view presets (optional)
 
-Copy these `.fmf` files into your FM26 views folder:
+You can **install these presets** or **make your own** FM26 view — the export plugin reads whatever columns are on screen.
+
+## Install TFP presets
+
+Copy into:
 
 ```
 ~/Library/Application Support/Sports Interactive/Football Manager 26/views/
 ```
 
-| File | Use on screen |
-|------|----------------|
-| `tfp_basic_stats.fmf` | **Player Search** / scouting shortlists (wide attribute set for analytics) |
-| `tfp_fm_squad_v1.fmf` | **Squad** screen (your current roster) |
+| File | Screen |
+|------|--------|
+| `tfp_basic_stats.fmf` | **Player Search** / scouting lists |
+| `tfp_fm_squad_v1.fmf` | **Squad** |
 
-In game: right-click the table header → **Import View** → pick the file → **Load**.
+In game: right-click table header → **Import View** → Load.
 
-These views are tuned for the [TFP FM](https://github.com/DadMych/tfp_fm) parser (currently in development). Fewer `-` masked columns = better scores.
+Tuned for [TFP FM](https://github.com/DadMych/tfp_fm) *(currently in development)*.
+
+## Make your own
+
+Any community or custom `.fmf` works if it exposes the columns you need. Build in-game via **Add Column**, or grab an “all attributes” view from FM Scout / Steam Workshop. Place the file in the same `views/` folder.
+
+Minimum: **Name + Position + ~20 unmasked attributes**.

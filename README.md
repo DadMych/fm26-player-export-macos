@@ -66,9 +66,13 @@ This will:
 2. Patch BepInEx core with `MainThreadTick` (backs up stock DLLs first)
 3. Install our `FM26PlayerExport.dll` into `BepInEx/plugins/`
 
-### Step 3 — Install TFP view presets
+### Step 3 — Views: install TFP presets or make your own
 
-Copy the bundled views into your FM26 views folder (Finder path: **Library → Application Support → Sports Interactive → Football Manager 26 → views**):
+FM exports only the columns visible in your current table view. You need a view with enough attributes for meaningful analysis — either use ours or build your own.
+
+**Option A — TFP presets (recommended for [TFP FM](https://github.com/DadMych/tfp_fm), currently in development)**
+
+Copy the bundled `.fmf` files into your FM26 views folder (Finder: **Library → Application Support → Sports Interactive → Football Manager 26 → views**):
 
 ```bash
 VIEWS="$HOME/Library/Application Support/Sports Interactive/Football Manager 26/views"
@@ -78,12 +82,18 @@ cp views/tfp_basic_stats.fmf views/tfp_fm_squad_v1.fmf "$VIEWS/"
 
 | View file | Screen in FM26 |
 |-----------|----------------|
-| `tfp_basic_stats.fmf` | **Player Search** / shortlist scouting lists |
-| `tfp_fm_squad_v1.fmf` | **Squad** (your current roster) |
+| `tfp_basic_stats.fmf` | **Player Search** / scouting shortlists |
+| `tfp_fm_squad_v1.fmf` | **Squad** |
 
-In game: right-click the table header → **Import View** → choose the file → **Load**.
+(`install_macos.sh` copies these automatically.)
 
-(`install_macos.sh` runs this copy automatically if the `views/` folder is present in the repo.)
+**Option B — Your own view**
+
+Create or download any FM26 view with the columns you care about (Name, Age, Position, attributes, value, etc.). Save the `.fmf` into the same `views/` folder above, or build columns in-game via **Add Column** on the table header.
+
+Minimum for most tools: **Name + Position + ~20 known attributes**. More visible columns (fewer `-` masks) = better scores.
+
+**Loading a view in game:** right-click the table header → **Import View** → pick the file → **Load**.
 
 ### Step 4 — Always launch through arm64
 
@@ -101,9 +111,9 @@ cd "$FM26_GAME" && ./run_bepinex_arm64.sh
 
 ### Step 5 — Export in game
 
-1. Open the right screen and load the matching view:
-   - **Squad** → import `tfp_fm_squad_v1`
-   - **Player Search** → import `tfp_basic_stats`
+1. Open the right screen and load a view (TFP presets or your own):
+   - **Squad** → `tfp_fm_squad_v1` (or any squad view with full attributes)
+   - **Player Search** → `tfp_basic_stats` (or your scouting view)
 2. Select players (Ctrl+A for all visible rows).
 3. Press **F9** (or Ctrl+P) and **do not touch the mouse** until export finishes.
 4. Find the CSV here (macOS default for **FM26 Player Export by vinteset**):
