@@ -2,7 +2,9 @@
 
 A community fork of [**FM26 Player Export by vinteset**](https://www.fmscout.com/) (v5.1) that makes **large player-list exports work on macOS Apple Silicon** — native arm64, no Rosetta crashes, stable scrolling through 500–10,000 rows.
 
-Published at **[github.com/DadMych/fm26-player-export-macos](https://github.com/DadMych/fm26-player-export-macos)**. Usable with any tool that reads the FM26 export CSV format (including [TFP FM](https://github.com/DadMych/tfp_fm) scouting analytics).
+Published at **[github.com/DadMych/fm26-player-export-macos](https://github.com/DadMych/fm26-player-export-macos)**.
+
+Pair with **[TFP FM](https://github.com/DadMych/tfp_fm)** scouting analytics *(currently in development)* — upload the exported CSV to get archetypes, squad analysis, and transfer advice.
 
 ---
 
@@ -64,7 +66,26 @@ This will:
 2. Patch BepInEx core with `MainThreadTick` (backs up stock DLLs first)
 3. Install our `FM26PlayerExport.dll` into `BepInEx/plugins/`
 
-### Step 3 — Always launch through arm64
+### Step 3 — Install TFP view presets
+
+Copy the bundled views into your FM26 views folder (Finder path: **Library → Application Support → Sports Interactive → Football Manager 26 → views**):
+
+```bash
+VIEWS="$HOME/Library/Application Support/Sports Interactive/Football Manager 26/views"
+mkdir -p "$VIEWS"
+cp views/tfp_basic_stats.fmf views/tfp_fm_squad_v1.fmf "$VIEWS/"
+```
+
+| View file | Screen in FM26 |
+|-----------|----------------|
+| `tfp_basic_stats.fmf` | **Player Search** / shortlist scouting lists |
+| `tfp_fm_squad_v1.fmf` | **Squad** (your current roster) |
+
+In game: right-click the table header → **Import View** → choose the file → **Load**.
+
+(`install_macos.sh` runs this copy automatically if the `views/` folder is present in the repo.)
+
+### Step 4 — Always launch through arm64
 
 **Do not** use Steam’s default launch on Apple Silicon — it may run under Rosetta and break hooks.
 
@@ -78,17 +99,22 @@ cd "$FM26_GAME" && ./run_bepinex_arm64.sh
 "/full/path/to/Football Manager 26/run_bepinex_arm64.sh" %command%
 ```
 
-### Step 4 — Export in game
+### Step 5 — Export in game
 
-1. Open **Squad** or **Recruitment → Player Search** (any scrollable player list).
-2. Load a view with the columns you need (see [export column guide](../../samples/HOW-TO-EXPORT.md)).
-3. Select players (Ctrl+A for all visible selection).
-4. Press **F9** (or Ctrl+P) and **do not touch the mouse** until the log says export finished.
-5. Find files in:
+1. Open the right screen and load the matching view:
+   - **Squad** → import `tfp_fm_squad_v1`
+   - **Player Search** → import `tfp_basic_stats`
+2. Select players (Ctrl+A for all visible rows).
+3. Press **F9** (or Ctrl+P) and **do not touch the mouse** until export finishes.
+4. Find the CSV here (macOS default for **FM26 Player Export by vinteset**):
 
    ```
-   ~/Documents/Sports Interactive/Football Manager 26/FM26PlayerExport by vinteset/
+   ~/Sports Interactive/Football Manager 26/FM26PlayerExport by vinteset/Exports CSV/
    ```
+
+   HTML copies land in `Exports HTML/` in the same folder.
+
+   > Some guides mention `~/Documents/Sports Interactive/…` — on macOS the plugin usually writes to **`~/Sports Interactive/`** (no `Documents`). Check both if you cannot find the file.
 
 Large lists take time: ~0.3 s per scroll step at default settings (657 rows ≈ several minutes).
 

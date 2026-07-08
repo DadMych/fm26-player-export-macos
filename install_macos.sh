@@ -42,11 +42,11 @@ echo "== FM26 Player Export — macOS Compatibility Build =="
 echo "Game: $GAME"
 echo ""
 
-echo "== 1/3 Arm64 launcher + .NET runtime =="
+echo "== 1/4 Arm64 launcher + .NET runtime =="
 bash "$HERE/setup_arm64.sh"
 
 echo ""
-echo "== 2/3 BepInEx macOS patch =="
+echo "== 2/4 BepInEx macOS patch =="
 CORE="$GAME/BepInEx/core"
 BACKUP="$CORE/backup-stock"
 mkdir -p "$BACKUP"
@@ -60,11 +60,26 @@ for dll in BepInEx.Core.dll BepInEx.Unity.IL2CPP.dll; do
 done
 
 echo ""
-echo "== 3/3 Export plugin =="
+echo "== 3/4 Export plugin =="
 PLUGIN_DEST="$GAME/BepInEx/plugins/FM26PlayerExport"
 mkdir -p "$PLUGIN_DEST"
 cp "$HERE/dist/FM26PlayerExport.dll" "$PLUGIN_DEST/FM26PlayerExport.dll"
 echo "   installed $PLUGIN_DEST/FM26PlayerExport.dll"
+
+echo ""
+echo "== 4/4 TFP view presets =="
+VIEWS_DEST="$HOME/Library/Application Support/Sports Interactive/Football Manager 26/views"
+if [ -d "$HERE/views" ]; then
+  mkdir -p "$VIEWS_DEST"
+  for f in tfp_basic_stats.fmf tfp_fm_squad_v1.fmf; do
+    if [ -f "$HERE/views/$f" ]; then
+      cp "$HERE/views/$f" "$VIEWS_DEST/$f"
+      echo "   installed $VIEWS_DEST/$f"
+    fi
+  done
+else
+  echo "   skipped (no views/ folder)"
+fi
 
 echo ""
 echo "== Done =="
@@ -75,9 +90,14 @@ echo ""
 echo "Steam → FM26 → Properties → Launch Options:"
 echo "  \"$GAME/run_bepinex_arm64.sh\" %command%"
 echo ""
-echo "In game: open Squad or Player Search, select rows, press F9."
+echo "In game:"
+echo "  Squad        → Import View → tfp_fm_squad_v1"
+echo "  Player Search → Import View → tfp_basic_stats"
+echo "  Select rows, press F9."
+echo ""
 echo "CSV output:"
-echo "  ~/Documents/Sports Interactive/Football Manager 26/FM26PlayerExport by vinteset/"
+echo "  ~/Sports Interactive/Football Manager 26/FM26PlayerExport by vinteset/Exports CSV/"
+echo "  (HTML in .../Exports HTML/)"
 echo ""
 echo "Tune stability in BepInEx/config/com.koda.fm26.playerexport.cfg"
 echo "  ScrollStepDelayFrames = 18   # raise to 24–30 for 500+ row lists"
