@@ -1,0 +1,174 @@
+# FM26 Player Export — macOS Compatibility Build
+
+A community fork of [**FM26 Player Export by vinteset**](https://www.fmscout.com/) (v5.1) that makes **large player-list exports work on macOS Apple Silicon** — native arm64, no Rosetta crashes, stable scrolling through 500–10,000 rows.
+
+Published at **[github.com/DadMych/fm26-player-export-macos](https://github.com/DadMych/fm26-player-export-macos)**. Usable with any tool that reads the FM26 export CSV format (including [TFP FM](https://github.com/DadMych/tfp_fm) scouting analytics).
+
+---
+
+## What this fixes
+
+| Issue on stock macOS build | Our fix |
+|----------------------------|---------|
+| BepInEx hooks fail under Rosetta; F9 hangs | Native **arm64** launcher (`run_bepinex_arm64.sh`) |
+| `ClassInjector` cannot add MonoBehaviours on arm64 | **`ExportDriver`** driven by BepInEx `MainThreadTick` |
+| Virtualised list scroll overshoots | Scroll **one third of the viewport** per step |
+| Crashes around 300–400 exported rows | Configurable **`ScrollStepDelayFrames`** (default **18**) + error **retry** |
+| UITK “dirty repaint” mid-capture | Catch and retry instead of aborting |
+| Empty cells in FM custom views | Read SI.Bindable text correctly |
+
+Full BepInEx patch notes: [`docs/BEPINEX-PATCH.md`](docs/BEPINEX-PATCH.md).
+
+---
+
+## Requirements
+
+- **macOS 13+** on **Apple Silicon** (M1/M2/M3/M4)
+- **Football Manager 26** (Steam)
+- **BepInEx 6 IL2CPP** already installed in your game folder ([BepInEx docs](https://docs.bepinex.dev/))
+- **~5 GB free disk** on your boot volume (BepInEx interop cache + export temp files)
+- Terminal access (one-time setup)
+
+---
+
+## Installation (recommended)
+
+### Step 1 — Install stock BepInEx
+
+Follow any standard FM26 BepInEx IL2CPP guide. After install you should have:
+
+```
+Football Manager 26/
+  BepInEx/
+  run_bepinex.sh
+  doorstop_config.ini
+  …
+```
+
+Launch the game **once** through BepInEx and reach the main menu so interop assemblies are generated (stored under `~/fm26_bep/interop` when using our launcher).
+
+### Step 2 — Run the macOS compatibility installer
+
+Clone or download this repo, then:
+
+```bash
+export FM26_GAME="$HOME/Library/Application Support/Steam/steamapps/common/Football Manager 26"
+# ↑ adjust if your game lives elsewhere (external SSD, etc.)
+
+bash install_macos.sh
+```
+
+This will:
+
+1. Install an arm64 .NET runtime + native launcher script into your game folder
+2. Patch BepInEx core with `MainThreadTick` (backs up stock DLLs first)
+3. Install our `FM26PlayerExport.dll` into `BepInEx/plugins/`
+
+### Step 3 — Always launch through arm64
+
+**Do not** use Steam’s default launch on Apple Silicon — it may run under Rosetta and break hooks.
+
+```bash
+cd "$FM26_GAME" && ./run_bepinex_arm64.sh
+```
+
+**Steam launch options** (Properties → Launch Options):
+
+```
+"/full/path/to/Football Manager 26/run_bepinex_arm64.sh" %command%
+```
+
+### Step 4 — Export in game
+
+1. Open **Squad** or **Recruitment → Player Search** (any scrollable player list).
+2. Load a view with the columns you need (see [export column guide](../../samples/HOW-TO-EXPORT.md)).
+3. Select players (Ctrl+A for all visible selection).
+4. Press **F9** (or Ctrl+P) and **do not touch the mouse** until the log says export finished.
+5. Find files in:
+
+   ```
+   ~/Documents/Sports Interactive/Football Manager 26/FM26PlayerExport by vinteset/
+   ```
+
+Large lists take time: ~0.3 s per scroll step at default settings (657 rows ≈ several minutes).
+
+---
+
+## Configuration
+
+After the first export, edit:
+
+```
+Football Manager 26/BepInEx/config/com.koda.fm26.playerexport.cfg
+```
+
+```ini
+[Export]
+# UI hard cap is ~10000 rows
+MaxRowsToExport = 10000
+
+# Frames to wait after each scroll step (~60 fps).
+# Default 18 ≈ 0.3 s/step. Raise if you still crash on long lists.
+ScrollStepDelayFrames = 18
+```
+
+Delete the `.cfg` file to regenerate defaults.
+
+---
+
+## Build from source (optional)
+
+Only needed if you change the plugin or `dist/` is missing.
+
+```bash
+export FM26_GAME="/path/to/Football Manager 26"
+export FM26_BEP="$HOME/fm26_bep"   # interop cache from a prior BepInEx boot
+
+bash build_plugin.sh
+cp plugin/bin/Release/net6.0/FM26PlayerExport.dll dist/FM26PlayerExport.dll
+bash install_macos.sh
+```
+
+Requires [.NET SDK 6+](https://dotnet.microsoft.com/download).
+
+| Variable | Purpose |
+|----------|---------|
+| `FM26_GAME` | Game install root |
+| `FM26_BEP` | APFS cache root (default `~/fm26_bep`) |
+| `FM26_INTEROP_DIR` | Il2Cpp interop assemblies (default `$FM26_BEP/interop`) |
+| `FM26_CORE_DIR` | BepInEx core DLLs (default `$FM26_GAME/BepInEx/core`) |
+
+---
+
+## Publishing releases
+
+Tag a version and attach `dist/` as release assets (or rely on the committed binaries in `dist/` — ~250 KB total). Point users to:
+
+```bash
+git clone https://github.com/DadMych/fm26-player-export-macos.git
+cd fm26-player-export-macos
+FM26_GAME="/path/to/Football Manager 26" bash install_macos.sh
+```
+
+---
+
+## Troubleshooting
+
+| Symptom | What to do |
+|---------|------------|
+| F9 does nothing | Launch via `run_bepinex_arm64.sh`, not plain Steam |
+| Log stops at “Runtime invoke patched” | Rosetta path — switch to arm64 launcher |
+| Crash around row 300–400 | Free disk space; set `ScrollStepDelayFrames = 24` or `30` |
+| Export finishes early | Scroll the list manually before F9; ensure rows are selected |
+| Empty / `-` attributes | Use a view with full attribute columns |
+| `No space left on device` | BepInEx cannot flush logs or write CSV — free several GB |
+
+Logs: `Football Manager 26/BepInEx/LogOutput.log` — look for `[FM26Export]` lines.
+
+---
+
+## License
+
+MIT for our patches — see [`LICENSE`](LICENSE) and [`NOTICE.md`](NOTICE.md).
+
+Original **FM26 Player Export** © vinteset (community plugin). **BepInEx** © BepInEx team (LGPL-2.1). **Football Manager** © Sports Interactive / SEGA. Not affiliated.
