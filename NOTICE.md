@@ -14,8 +14,11 @@ not affiliated with or endorsed by Sports Interactive or SEGA.
 
 ## BepInEx
 
-The files in `dist/bepinex-macos-patch/` are modified builds of
-[BepInEx 6 IL2CPP](https://github.com/BepInEx/BepInEx) (LGPL-2.1).
+The files in `dist/bepinex-core/` are the [BepInEx 6 IL2CPP](https://github.com/BepInEx/BepInEx)
+core (LGPL-2.1) and its bundled dependencies (Harmony, MonoMod, Mono.Cecil,
+Il2CppInterop, Cpp2IL, Iced, AsmResolver, Dobby, funchook, and others — each
+under its own license), with two assemblies modified by us:
+`BepInEx.Core.dll` and `BepInEx.Unity.IL2CPP.dll`.
 
 We add a **main-thread tick** (`IL2CPPChainloader.MainThreadTick`) so plugins
 can run per-frame work on macOS arm64 without Unity `MonoBehaviour` injection.

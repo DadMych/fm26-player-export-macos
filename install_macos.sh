@@ -28,8 +28,8 @@ if [ ! -d "$GAME/BepInEx" ]; then
 fi
 
 for f in "$HERE/dist/FM26PlayerExport.dll" \
-         "$HERE/dist/bepinex-macos-patch/BepInEx.Core.dll" \
-         "$HERE/dist/bepinex-macos-patch/BepInEx.Unity.IL2CPP.dll"; do
+         "$HERE/dist/bepinex-core/BepInEx.Core.dll" \
+         "$HERE/dist/bepinex-core/BepInEx.Unity.IL2CPP.dll"; do
   if [ ! -f "$f" ]; then
     echo "ERROR: missing release file: $f" >&2
     echo "Run build_plugin.sh or download a GitHub release bundle." >&2
@@ -46,18 +46,23 @@ echo "== 1/4 Arm64 launcher + .NET runtime =="
 bash "$HERE/setup_arm64.sh"
 
 echo ""
-echo "== 2/4 BepInEx macOS patch =="
+echo "== 2/4 BepInEx core (full matched set) =="
+# We install the COMPLETE BepInEx core we test against, not just the two
+# patched DLLs: mixing our patched assemblies with a different BepInEx
+# nightly fails at boot with e.g.
+#   MissingMethodException: BepInEx.Paths.get_DisplayBepInExVersion()
 CORE="$GAME/BepInEx/core"
 BACKUP="$CORE/backup-stock"
-mkdir -p "$BACKUP"
-for dll in BepInEx.Core.dll BepInEx.Unity.IL2CPP.dll; do
-  if [ -f "$CORE/$dll" ] && [ ! -f "$BACKUP/$dll" ]; then
-    cp "$CORE/$dll" "$BACKUP/$dll"
-    echo "   backed up stock $dll"
-  fi
-  cp "$HERE/dist/bepinex-macos-patch/$dll" "$CORE/$dll"
-  echo "   installed patched $dll"
-done
+if [ ! -d "$BACKUP" ]; then
+  mkdir -p "$BACKUP"
+  find "$CORE" -maxdepth 1 -type f \( -name "*.dll" -o -name "*.dylib" \) \
+    -exec cp {} "$BACKUP/" \;
+  echo "   backed up stock core to $BACKUP"
+fi
+cp "$HERE/dist/bepinex-core/"* "$CORE/"
+# exFAT drives grow AppleDouble ._ junk that BepInEx trips over — clean it.
+find "$GAME/BepInEx" -name "._*" -delete 2>/dev/null || true
+echo "   installed $(ls "$HERE/dist/bepinex-core" | wc -l | tr -d ' ') core files"
 
 echo ""
 echo "== 3/4 Export plugin =="

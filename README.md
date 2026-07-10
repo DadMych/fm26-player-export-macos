@@ -64,7 +64,7 @@ bash install_macos.sh
 This will:
 
 1. Install an arm64 .NET runtime + native launcher script into your game folder
-2. Patch BepInEx core with `MainThreadTick` (backs up stock DLLs first)
+2. Install the **complete matched BepInEx core** we test against, including our `MainThreadTick` patch (your stock DLLs are backed up to `BepInEx/core/backup-stock/`)
 3. Install our `FM26PlayerExport.dll` into `BepInEx/plugins/`
 
 ### Step 3 — Views: install TFP presets or make your own
@@ -196,6 +196,7 @@ FM26_GAME="/path/to/Football Manager 26" bash install_macos.sh
 | `dyld: … libdoorstop.dylib … (have 'x86_64,arm64', need 'arm64e')`, no logs at all | Update to the latest launcher (`git pull`, re-run `install_macos.sh`). Older versions exported `DYLD_INSERT_LIBRARIES` globally, and with SIP disabled dyld tried to inject doorstop into `/usr/bin/arch` (an arm64e system binary) instead of the game. The current launcher passes DYLD vars only to the game process via `arch -e`. |
 | Game exits silently right after launch, log ends after `[UnityMemory] Configuration Parameters`, no crash report | You launched the script from another directory. Steam's DRM check silently exits the game when CWD isn't the game folder. Update to the latest launcher (it does `cd` itself), or run the script from inside the game folder. |
 | Game boots normally but **no BepInEx at all** (no interop, no `LogOutput.log`), or crashes instantly during load | The stock FM binary is signed by SEGA **without the JIT entitlement** that .NET CoreCLR needs on Apple Silicon, so injection either gets stripped or dies in `pthread_jit_write_protect_np`. Update to the latest launcher (`git pull`, re-run `install_macos.sh`): it now builds a re-signed "shadow" copy of the game binary (in `~/fm26_bep/fm.app`) with the JIT entitlements added, automatically, on every launch. Also check the game's own output at `/tmp/fm26_arm64_launch.log` — the launcher prints this path. |
+| `[Fatal : Preloader] MissingMethodException: … BepInEx.Paths.get_DisplayBepInExVersion()` (or similar missing-method errors at boot) | Version mismatch between your BepInEx nightly and our patched DLLs. `git pull` and re-run `install_macos.sh` — it now installs the complete matched BepInEx core set instead of mixing two patched DLLs into whatever nightly you had. |
 | F9 does nothing | Launch via `run_bepinex_arm64.sh`, not plain Steam |
 | Log stops at “Runtime invoke patched” | Rosetta path — switch to arm64 launcher |
 | Crash around row 300–400 | Free disk space; set `ScrollStepDelayFrames = 24` or `30` |
