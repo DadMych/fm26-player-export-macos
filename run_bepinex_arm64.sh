@@ -197,6 +197,22 @@ export ARCHPREFERENCE="arm64"
 # above are resolved against CWD too.
 cd "$BASEDIR" || exit 1
 
+# Force UnityLogListening off. BepInEx's IL2CPPUnityLogSource is the only
+# thing that calls ClassInjector, and Il2CppInterop's injector cannot find
+# GenericMethod::GetMethod in FM26's arm64 GameAssembly — on some machines it
+# logs "Unable to execute IL2CPP chainloader" forever (plugin never loads),
+# on others it hard-crashes the Iced xref scan. Our plugin does not need it.
+# The game sometimes regenerates this cfg with defaults, so re-apply each run.
+bepcfg="$BASEDIR/BepInEx/config/BepInEx.cfg"
+if [ -f "$bepcfg" ]; then
+    sed -i '' 's/^UnityLogListening = true/UnityLogListening = false/' "$bepcfg"
+else
+    mkdir -p "$BASEDIR/BepInEx/config"
+    printf '[Logging]\nUnityLogListening = false\n' > "$bepcfg"
+fi
+# sed on exFAT leaves AppleDouble ._ junk that BepInEx trips over — clean it.
+find "$BASEDIR/BepInEx/config" -name "._*" -delete 2>/dev/null || true
+
 # Diagnostics: capture the game's own stdout/stderr so early crashes (before
 # BepInEx can log) are visible. Written to APFS so it is always readable.
 DIAG_LOG="/tmp/fm26_arm64_launch.log"
