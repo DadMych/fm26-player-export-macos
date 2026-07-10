@@ -191,6 +191,19 @@ fi
 #    from a prior stock-script run in the same shell.
 export ARCHPREFERENCE="arm64"
 
+# Steam ownership. When Steam launches a game it sets these; when WE launch the
+# binary directly, SteamAPI_Init falls back to reading steam_appid.txt from CWD,
+# which is racy — on failure FM loads steamclient.dylib, logs
+# "[S_API FAIL] ... before SteamAPI_Init succeeded", runs its UE4 shutdown
+# handler and exits cleanly (looks like a crash, but no crash report). Setting
+# the app id explicitly makes SteamAPI_Init succeed deterministically.
+STEAM_APPID="$(cat "$BASEDIR/steam_appid.txt" 2>/dev/null | tr -dc '0-9')"
+if [ -n "$STEAM_APPID" ]; then
+    export SteamAppId="$STEAM_APPID"
+    export SteamGameId="$STEAM_APPID"
+    export SteamOverlayGameId="$STEAM_APPID"
+fi
+
 # CWD must be the game folder: Steam's DRM check exits the process silently
 # (no crash report, log ends right after Unity's memory-setup dump) when the
 # game is started from another directory, and the relative dotnet_arm64 paths
