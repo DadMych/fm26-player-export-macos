@@ -17,12 +17,19 @@ not affiliated with or endorsed by Sports Interactive or SEGA.
 The files in `dist/bepinex-core/` are the [BepInEx 6 IL2CPP](https://github.com/BepInEx/BepInEx)
 core (LGPL-2.1) and its bundled dependencies (Harmony, MonoMod, Mono.Cecil,
 Il2CppInterop, Cpp2IL, Iced, AsmResolver, Dobby, funchook, and others — each
-under its own license), with two assemblies modified by us:
-`BepInEx.Core.dll` and `BepInEx.Unity.IL2CPP.dll`.
+under its own license), with these assemblies modified by us:
 
-We add a **main-thread tick** (`IL2CPPChainloader.MainThreadTick`) so plugins
-can run per-frame work on macOS arm64 without Unity `MonoBehaviour` injection.
-See `docs/BEPINEX-PATCH.md`.
+- `BepInEx.Core.dll`, `BepInEx.Unity.IL2CPP.dll` — we add a **main-thread
+  tick** (`IL2CPPChainloader.MainThreadTick`) so plugins can run per-frame
+  work on macOS arm64 without Unity `MonoBehaviour` injection.
+  See `docs/BEPINEX-PATCH.md`.
+- `Il2CppInterop.Runtime.dll`, `Il2CppInterop.Common.dll`,
+  `Il2CppInterop.HarmonySupport.dll` — built from
+  [Il2CppInterop](https://github.com/BepInEx/Il2CppInterop) 1.5.1
+  (commit `6d9007c` + PR #272) with our **arm64 injection support**:
+  native A64 xref scanning, shim-safe hooking, and graceful degradation
+  for hooks that cannot exist on arm64. Full source diff:
+  `docs/il2cppinterop-arm64.patch` (Il2CppInterop is LGPL-2.1).
 
 ## Dobby
 
