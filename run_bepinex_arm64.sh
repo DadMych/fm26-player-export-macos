@@ -99,18 +99,19 @@ export DOTNET_ROLL_FORWARD_TO_PRERELEASE="1"
 
 doorstop_directory="${BASEDIR}/"
 doorstop_name="libdoorstop.${lib_extension}"
+doorstop_lib="${doorstop_directory}${doorstop_name}"
+game_dyld_library_path="${doorstop_directory}:${corlib_dir}"
 
-export DYLD_LIBRARY_PATH="${doorstop_directory}:${corlib_dir}:${DYLD_LIBRARY_PATH}"
-if [ -z "$DYLD_INSERT_LIBRARIES" ]; then
-    export DYLD_INSERT_LIBRARIES="${doorstop_name}"
-else
-    export DYLD_INSERT_LIBRARIES="${doorstop_name}:${DYLD_INSERT_LIBRARIES}"
-fi
+# IMPORTANT: DYLD_* variables are intentionally NOT exported here. `/usr/bin/arch`
+# is an Apple arm64e platform binary; with SIP relaxed, dyld would try to inject
+# our x86_64/arm64 doorstop into `arch` itself and abort with
+# "missing compatible architecture (have 'x86_64,arm64', need 'arm64e')".
+# With SIP enabled dyld silently strips them for `arch` anyway. Either way the
+# only reliable channel to the game process is `arch -e VAR=value`.
 
 # NATIVE arm64 launch. We must force arm64 explicitly with `arch -arm64`:
 #  - a universal binary can otherwise be run as x86_64 if ARCHPREFERENCE leaked
 #    from a prior stock-script run in the same shell.
-#  - `arch` strips DYLD_* env vars, so DYLD_INSERT_LIBRARIES must be re-passed via -e.
 export ARCHPREFERENCE="arm64"
 
 # Diagnostics: capture the game's own stdout/stderr so early crashes (before
@@ -119,11 +120,16 @@ DIAG_LOG="/tmp/fm26_arm64_launch.log"
 {
   echo "=== $(date '+%H:%M:%S') arm64 launcher ==="
   echo "executable_path=$executable_path"
-  echo "DYLD_INSERT_LIBRARIES=$DYLD_INSERT_LIBRARIES"
+  echo "doorstop_lib=$doorstop_lib ($(file -b "$doorstop_lib" 2>/dev/null | head -1))"
   echo "coreclr=$DOORSTOP_CLR_RUNTIME_CORECLR_PATH corlib=$DOORSTOP_CLR_CORLIB_DIR"
   echo "arch -arm64 present: $(command -v arch)"
 } > "$DIAG_LOG"
 
 echo "[arm64-launcher] launching under arch -arm64; game output -> $DIAG_LOG"
-exec arch -arm64 -e DYLD_INSERT_LIBRARIES="${DYLD_INSERT_LIBRARIES}" \
+# All DYLD_* vars go through `arch -e` (see note above): they must reach the game
+# process without being applied to /usr/bin/arch itself (an arm64e binary that
+# our x86_64/arm64 dylibs cannot inject into).
+exec arch -arm64 \
+     -e DYLD_INSERT_LIBRARIES="${doorstop_lib}" \
+     -e DYLD_LIBRARY_PATH="${game_dyld_library_path}:${DYLD_LIBRARY_PATH}" \
      "$executable_path" "$@" >> "$DIAG_LOG" 2>&1
