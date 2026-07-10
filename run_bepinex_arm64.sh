@@ -114,6 +114,12 @@ game_dyld_library_path="${doorstop_directory}:${corlib_dir}"
 #    from a prior stock-script run in the same shell.
 export ARCHPREFERENCE="arm64"
 
+# CWD must be the game folder: Steam's DRM check exits the process silently
+# (no crash report, log ends right after Unity's memory-setup dump) when the
+# game is started from another directory, and the relative dotnet_arm64 paths
+# above are resolved against CWD too.
+cd "$BASEDIR" || exit 1
+
 # Diagnostics: capture the game's own stdout/stderr so early crashes (before
 # BepInEx can log) are visible. Written to APFS so it is always readable.
 DIAG_LOG="/tmp/fm26_arm64_launch.log"

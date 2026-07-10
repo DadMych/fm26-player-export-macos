@@ -193,6 +193,7 @@ FM26_GAME="/path/to/Football Manager 26" bash install_macos.sh
 | Symptom | What to do |
 |---------|------------|
 | `dyld: … libdoorstop.dylib … (have 'x86_64,arm64', need 'arm64e')`, no logs at all | Update to the latest launcher (`git pull`, re-run `install_macos.sh`). Older versions exported `DYLD_INSERT_LIBRARIES` globally, and with SIP disabled dyld tried to inject doorstop into `/usr/bin/arch` (an arm64e system binary) instead of the game. The current launcher passes DYLD vars only to the game process via `arch -e`. |
+| Game exits silently right after launch, log ends after `[UnityMemory] Configuration Parameters`, no crash report | You launched the script from another directory. Steam's DRM check silently exits the game when CWD isn't the game folder. Update to the latest launcher (it does `cd` itself), or run the script from inside the game folder. |
 | F9 does nothing | Launch via `run_bepinex_arm64.sh`, not plain Steam |
 | Log stops at “Runtime invoke patched” | Rosetta path — switch to arm64 launcher |
 | Crash around row 300–400 | Free disk space; set `ScrollStepDelayFrames = 24` or `30` |
