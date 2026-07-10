@@ -80,6 +80,64 @@ resolve_executable_path () {
 }
 executable_path=$(resolve_executable_path "${executable_path}")
 
+# --- JIT-entitled shadow bundle -------------------------------------------
+# The stock FM binary is hardened-runtime signed by SEGA WITHOUT
+# com.apple.security.cs.allow-jit, and .NET CoreCLR requires JIT on Apple
+# Silicon. With plain injection the game either dies with SIGTRAP in
+# pthread_jit_write_protect_np during doorstop bootstrap, or dyld refuses the
+# injection entirely and the game boots without BepInEx (no logs at all).
+#
+# We cannot re-sign the Steam bundle in place (App Management TCC blocks it,
+# and Steam restores the original file on update/verify anyway). Instead we
+# build a tiny "shadow" .app on APFS: symlinks to the real Contents plus a
+# copy of the main executable, ad-hoc re-signed with the original
+# entitlements + the JIT ones. Rebuilt automatically whenever Steam updates
+# the game binary.
+shadow_root="${FM26_BEP:-$HOME/fm26_bep}"
+shadow_app="$shadow_root/fm.app"
+shadow_bin="$shadow_app/Contents/MacOS/$(basename "$executable_path")"
+real_contents="$(dirname "$(dirname "$executable_path")")"
+
+# BepInEx derives its game paths from the *executable* location, so the shadow
+# root must mirror the game root: Data, GameAssembly.dylib and BepInEx itself
+# are symlinked next to fm.app. Refresh on every launch (cheap, fixes moves).
+mkdir -p "$shadow_root"
+ln -sfn "$real_contents/Resources/Data"               "$shadow_root/Data"
+ln -sfn "$real_contents/Frameworks/GameAssembly.dylib" "$shadow_root/GameAssembly.dylib"
+ln -sfn "$BASEDIR/BepInEx"                             "$shadow_root/BepInEx"
+
+if [ ! -f "$shadow_bin" ] || [ "$executable_path" -nt "$shadow_bin" ]; then
+    echo "[arm64-launcher] building JIT-entitled shadow bundle at $shadow_app"
+    mkdir -p "$shadow_app/Contents/MacOS"
+    ln -sfn "$real_contents/Frameworks" "$shadow_app/Contents/Frameworks"
+    ln -sfn "$real_contents/PlugIns"    "$shadow_app/Contents/PlugIns"
+    ln -sfn "$real_contents/Resources"  "$shadow_app/Contents/Resources"
+    cp -f "$real_contents/Info.plist"   "$shadow_app/Contents/Info.plist"
+    cp -f "$executable_path" "$shadow_bin"
+
+    ents="$(mktemp /tmp/fm26_ents.XXXXXX)"
+    codesign -d --entitlements "$ents" --xml "$executable_path" 2>/dev/null || true
+    if [ ! -s "$ents" ]; then
+        printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict/></plist>\n' > "$ents"
+    fi
+    for k in com.apple.security.cs.allow-jit \
+             com.apple.security.cs.allow-unsigned-executable-memory \
+             com.apple.security.cs.disable-executable-page-protection \
+             com.apple.security.cs.allow-dyld-environment-variables \
+             com.apple.security.cs.disable-library-validation; do
+        /usr/libexec/PlistBuddy -c "Add :$k bool true" "$ents" 2>/dev/null \
+            || /usr/libexec/PlistBuddy -c "Set :$k true" "$ents"
+    done
+    if ! codesign -f -s - --entitlements "$ents" "$shadow_bin"; then
+        echo "[arm64-launcher] ERROR: codesign of shadow binary failed" >&2
+        rm -f "$ents"
+        exit 1
+    fi
+    rm -f "$ents"
+fi
+executable_path="$shadow_bin"
+# ---------------------------------------------------------------------------
+
 target_assembly="$(abs_path "$target_assembly")"
 
 export DOORSTOP_ENABLED="$enabled"
@@ -90,8 +148,8 @@ export DOORSTOP_MONO_DLL_SEARCH_PATH_OVERRIDE="$dll_search_path_override"
 export DOORSTOP_MONO_DEBUG_ENABLED="$debug_enable"
 export DOORSTOP_MONO_DEBUG_ADDRESS="$debug_address"
 export DOORSTOP_MONO_DEBUG_SUSPEND="$debug_suspend"
-export DOORSTOP_CLR_RUNTIME_CORECLR_PATH="$coreclr_path.$lib_extension"
-export DOORSTOP_CLR_CORLIB_DIR="$corlib_dir"
+export DOORSTOP_CLR_RUNTIME_CORECLR_PATH="$BASEDIR/$coreclr_path.$lib_extension"
+export DOORSTOP_CLR_CORLIB_DIR="$BASEDIR/$corlib_dir"
 
 # Allow net6-targeted BepInEx assemblies to run on a newer arm64 runtime if needed.
 export DOTNET_ROLL_FORWARD="LatestMajor"
@@ -100,7 +158,26 @@ export DOTNET_ROLL_FORWARD_TO_PRERELEASE="1"
 doorstop_directory="${BASEDIR}/"
 doorstop_name="libdoorstop.${lib_extension}"
 doorstop_lib="${doorstop_directory}${doorstop_name}"
-game_dyld_library_path="${doorstop_directory}:${corlib_dir}"
+game_dyld_library_path="${BASEDIR}:${DOORSTOP_CLR_CORLIB_DIR}"
+
+# Fail loudly instead of booting a vanilla game: if any of these is missing,
+# injection silently does nothing ("game runs but no BepInEx / no logs").
+err=0
+if [ ! -f "$doorstop_lib" ]; then
+    echo "[arm64-launcher] ERROR: $doorstop_lib not found." >&2
+    echo "  Install stock BepInEx 6 IL2CPP into the game folder first." >&2
+    err=1
+fi
+if [ ! -f "$DOORSTOP_CLR_RUNTIME_CORECLR_PATH" ]; then
+    echo "[arm64-launcher] ERROR: arm64 .NET runtime not found at $DOORSTOP_CLR_RUNTIME_CORECLR_PATH" >&2
+    echo "  Run setup_arm64.sh (or install_macos.sh) with FM26_GAME set to this game folder." >&2
+    err=1
+fi
+if [ ! -f "$target_assembly" ]; then
+    echo "[arm64-launcher] ERROR: BepInEx assembly not found at $target_assembly" >&2
+    err=1
+fi
+[ "$err" = "1" ] && exit 1
 
 # IMPORTANT: DYLD_* variables are intentionally NOT exported here. `/usr/bin/arch`
 # is an Apple arm64e platform binary; with SIP relaxed, dyld would try to inject

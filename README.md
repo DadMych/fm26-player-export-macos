@@ -13,6 +13,7 @@ Pair with **[TFP FM](https://github.com/DadMych/tfp_fm)** scouting analytics *(c
 | Issue on stock macOS build | Our fix |
 |----------------------------|---------|
 | BepInEx hooks fail under Rosetta; F9 hangs | Native **arm64** launcher (`run_bepinex_arm64.sh`) |
+| Game binary lacks the JIT entitlement CoreCLR needs on Apple Silicon (BepInEx never loads, or instant crash) | Launcher auto-builds a re-signed **shadow bundle** with JIT entitlements (`~/fm26_bep/fm.app`) |
 | `ClassInjector` cannot add MonoBehaviours on arm64 | **`ExportDriver`** driven by BepInEx `MainThreadTick` |
 | Virtualised list scroll overshoots | Scroll **one third of the viewport** per step |
 | Crashes around 300–400 exported rows | Configurable **`ScrollStepDelayFrames`** (default **18**) + error **retry** |
@@ -194,6 +195,7 @@ FM26_GAME="/path/to/Football Manager 26" bash install_macos.sh
 |---------|------------|
 | `dyld: … libdoorstop.dylib … (have 'x86_64,arm64', need 'arm64e')`, no logs at all | Update to the latest launcher (`git pull`, re-run `install_macos.sh`). Older versions exported `DYLD_INSERT_LIBRARIES` globally, and with SIP disabled dyld tried to inject doorstop into `/usr/bin/arch` (an arm64e system binary) instead of the game. The current launcher passes DYLD vars only to the game process via `arch -e`. |
 | Game exits silently right after launch, log ends after `[UnityMemory] Configuration Parameters`, no crash report | You launched the script from another directory. Steam's DRM check silently exits the game when CWD isn't the game folder. Update to the latest launcher (it does `cd` itself), or run the script from inside the game folder. |
+| Game boots normally but **no BepInEx at all** (no interop, no `LogOutput.log`), or crashes instantly during load | The stock FM binary is signed by SEGA **without the JIT entitlement** that .NET CoreCLR needs on Apple Silicon, so injection either gets stripped or dies in `pthread_jit_write_protect_np`. Update to the latest launcher (`git pull`, re-run `install_macos.sh`): it now builds a re-signed "shadow" copy of the game binary (in `~/fm26_bep/fm.app`) with the JIT entitlements added, automatically, on every launch. Also check the game's own output at `/tmp/fm26_arm64_launch.log` — the launcher prints this path. |
 | F9 does nothing | Launch via `run_bepinex_arm64.sh`, not plain Steam |
 | Log stops at “Runtime invoke patched” | Rosetta path — switch to arm64 launcher |
 | Crash around row 300–400 | Free disk space; set `ScrollStepDelayFrames = 24` or `30` |
