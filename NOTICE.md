@@ -31,6 +31,19 @@ under its own license), with these assemblies modified by us:
   for hooks that cannot exist on arm64. Full source diff:
   `docs/il2cppinterop-arm64.patch` (Il2CppInterop is LGPL-2.1).
 
+## UnityDoorstop
+
+`libdoorstop.dylib` (universal x86_64+arm64) is from
+[NeighTools/UnityDoorstop](https://github.com/NeighTools/UnityDoorstop)
+(LGPL-3.0), as distributed with the BepInEx 6 IL2CPP pack. It is the native
+injector that bootstraps BepInEx into the Unity process.
+
+## Microsoft .NET helper assemblies
+
+The files in `dist/dotnet-extras/` (`Microsoft.Bcl.AsyncInterfaces.dll`,
+`Microsoft.Extensions.*.dll`) are unmodified Microsoft .NET libraries (MIT
+license), as distributed with the BepInEx 6 IL2CPP pack.
+
 ## Dobby
 
 `libdobby.arm64.dylib` is from the [Dobby](https://github.com/jmpews/Dobby)

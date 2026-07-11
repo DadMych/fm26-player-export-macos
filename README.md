@@ -87,29 +87,16 @@ To disable without uninstalling: set `Enabled = false` in config (see [Configura
 
 - **macOS 13+** on **Apple Silicon** (M1/M2/M3/M4)
 - **Football Manager 26** (Steam)
-- **BepInEx 6 IL2CPP** already installed in your game folder ([BepInEx docs](https://docs.bepinex.dev/))
 - **~5 GB free disk** on your boot volume (BepInEx interop cache + export temp files)
 - Terminal access (one-time setup)
+
+**No separate BepInEx install needed** — everything is bundled: the complete BepInEx 6 IL2CPP core we test against, the doorstop injector, and all plugins. If you *do* already have stock BepInEx installed, that's fine too — the installer backs up your core DLLs to `BepInEx/core/backup-stock/` before replacing them.
 
 ---
 
 ## Installation (recommended)
 
-### Step 1 — Install stock BepInEx
-
-Follow any standard FM26 BepInEx IL2CPP guide. After install you should have:
-
-```
-Football Manager 26/
-  BepInEx/
-  run_bepinex.sh
-  doorstop_config.ini
-  …
-```
-
-Launch the game **once** through BepInEx and reach the main menu so interop assemblies are generated (stored under `~/fm26_bep/interop` when using our launcher).
-
-### Step 2 — Run the macOS compatibility installer
+### Step 1 — Run the installer
 
 Clone or download this repo, then:
 
@@ -122,15 +109,17 @@ bash install_macos.sh
 
 This will:
 
-1. Install an arm64 .NET runtime + native launcher script into your game folder
-2. Install the **complete matched BepInEx core** we test against, including our `MainThreadTick` patch and the **arm64-patched Il2CppInterop** (your stock DLLs are backed up to `BepInEx/core/backup-stock/`)
+1. Install an arm64 .NET runtime, the **doorstop injector**, and the native launcher script into your game folder
+2. Install the **complete matched BepInEx core** we test against, including our `MainThreadTick` patch and the **arm64-patched Il2CppInterop** (a pre-existing stock core is backed up to `BepInEx/core/backup-stock/`)
 3. Install our `FM26PlayerExport.dll` into `BepInEx/plugins/`
 4. Install **FM26 Display Fix** into `BepInEx/plugins/FM26DisplayFix/` (16:10 + ultrawide menu scaling)
 5. Copy TFP view presets into `~/Library/Application Support/Sports Interactive/Football Manager 26/views/` (optional, for the export plugin)
 
 Other mods: just drop them into `BepInEx/plugins/` as usual — no re-signing, no per-mod setup.
 
-### Step 3 — Views: install TFP presets or make your own (for the export plugin)
+> **First launch takes a few minutes:** BepInEx generates Il2Cpp interop assemblies from your game install (stored under `~/fm26_bep/interop`). This happens once; later launches are fast.
+
+### Step 2 — Views: install TFP presets or make your own (for the export plugin)
 
 FM exports only the columns visible in your current table view. You need a view with enough attributes for meaningful analysis — either use ours or build your own.
 
@@ -159,7 +148,7 @@ Minimum for most tools: **Name + Position + ~20 known attributes**. More visible
 
 **Loading a view in game:** right-click the table header → **Import View** → pick the file → **Load**.
 
-### Step 4 — Always launch through arm64
+### Step 3 — Always launch through arm64
 
 **Do not** use Steam’s default launch on Apple Silicon — it may run under Rosetta and break hooks.
 
@@ -173,7 +162,7 @@ cd "$FM26_GAME" && ./run_bepinex_arm64.sh
 "/full/path/to/Football Manager 26/run_bepinex_arm64.sh" %command%
 ```
 
-### Step 5 — Export in game (Player Export plugin)
+### Step 4 — Export in game (Player Export plugin)
 
 1. Open the right screen and load a view (TFP presets or your own):
    - **Squad** → `tfp_fm_squad_v1` (or any squad view with full attributes)

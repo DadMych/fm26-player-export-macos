@@ -41,7 +41,8 @@ fi
 [ -z "$SRC" ] && { echo "ERROR: no arm64 .NET runtime found. Install one: brew install dotnet"; exit 1; }
 
 cp "$SRC"/*.dll "$SRC"/*.dylib "$DST"/
-# BepInEx also ships these 7 managed helpers in its x86 dotnet folder; carry them over.
+# BepInEx also ships these 7 managed helpers in its x86 dotnet folder; carry them
+# over from the stock install if present, otherwise use our bundled copies.
 for d in Microsoft.Bcl.AsyncInterfaces.dll \
          Microsoft.Extensions.DependencyInjection.Abstractions.dll \
          Microsoft.Extensions.DependencyInjection.dll \
@@ -49,14 +50,29 @@ for d in Microsoft.Bcl.AsyncInterfaces.dll \
          Microsoft.Extensions.Logging.dll \
          Microsoft.Extensions.Options.dll \
          Microsoft.Extensions.Primitives.dll; do
-    [ -f "$GAME/dotnet/$d" ] && cp "$GAME/dotnet/$d" "$DST/$d"
+    if [ -f "$GAME/dotnet/$d" ]; then
+        cp "$GAME/dotnet/$d" "$DST/$d"
+    elif [ -f "$HERE/dist/dotnet-extras/$d" ]; then
+        cp "$HERE/dist/dotnet-extras/$d" "$DST/$d"
+    else
+        echo "WARNING: helper DLL $d not found (stock dotnet/ or dist/dotnet-extras/)" >&2
+    fi
 done
 # doorstop expects the coreclr basename without extension = "libcoreclr"
 [ -f "$DST/libcoreclr.dylib" ] || { echo "ERROR: libcoreclr.dylib missing in $DST"; exit 1; }
 echo "   assembled: $(ls "$DST"/*.dll | wc -l | tr -d ' ') dll, $(ls "$DST"/*.dylib | wc -l | tr -d ' ') dylib"
 
-echo "== 2. Install universal libdobby.dylib =="
+echo "== 2. Install doorstop injector =="
+if [ ! -f "$GAME/libdoorstop.dylib" ]; then
+    cp "$HERE/libdoorstop.dylib" "$GAME/libdoorstop.dylib"
+    echo "   installed bundled libdoorstop.dylib (universal)"
+else
+    echo "   keeping existing libdoorstop.dylib"
+fi
+
+echo "== 3. Install universal libdobby.dylib =="
 CORE="$GAME/BepInEx/core"
+mkdir -p "$CORE"
 if [ ! -f "$CORE/libdobby.x86_64.dylib.bak" ] && [ -f "$CORE/libdobby.dylib" ]; then
     cp "$CORE/libdobby.dylib" "$CORE/libdobby.x86_64.dylib.bak"
 fi
@@ -68,11 +84,11 @@ else
 fi
 file "$CORE/libdobby.dylib"
 
-echo "== 3. Symlink arm64 runtime into game folder =="
+echo "== 4. Symlink arm64 runtime into game folder =="
 ln -sfn "$DST" "$GAME/dotnet_arm64"
 ls -ld "$GAME/dotnet_arm64"
 
-echo "== 4. Install arm64 launch script =="
+echo "== 5. Install arm64 launch script =="
 cp "$HERE/run_bepinex_arm64.sh" "$GAME/run_bepinex_arm64.sh"
 chmod +x "$GAME/run_bepinex_arm64.sh"
 echo "   $GAME/run_bepinex_arm64.sh"

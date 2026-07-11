@@ -1,13 +1,12 @@
 #!/bin/bash
 # FM26 Player Export — macOS Compatibility Build
-# One-shot installer: arm64 launcher + BepInEx patch + export plugin.
+# One-shot installer: BepInEx (bundled) + arm64 launcher + plugins.
 #
 #   FM26_GAME="/path/to/Football Manager 26" bash install_macos.sh
 #
-# Prerequisites (manual, one time):
-#   1. Football Manager 26 (Steam, macOS)
-#   2. BepInEx 6 IL2CPP installed in the game folder (standard FM modding setup)
-#   3. Launch the game once through BepInEx so interop assemblies are generated
+# Prerequisites: Football Manager 26 (Steam, macOS). Nothing else — BepInEx core,
+# the doorstop injector, and all plugins are bundled. A pre-existing stock BepInEx
+# install is fine too (we back up its core DLLs before replacing them).
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -21,10 +20,14 @@ if [ -z "$GAME" ]; then
   exit 1
 fi
 
-if [ ! -d "$GAME/BepInEx" ]; then
-  echo "ERROR: BepInEx not found at $GAME/BepInEx" >&2
-  echo "Install stock BepInEx 6 IL2CPP for FM26 first, then launch the game once." >&2
+if [ ! -d "$GAME/fm.app" ] && [ ! -f "$GAME/GameAssembly.dylib" ]; then
+  echo "ERROR: $GAME does not look like an FM26 install (no fm.app / GameAssembly.dylib)" >&2
   exit 1
+fi
+
+if [ ! -d "$GAME/BepInEx" ]; then
+  echo "No existing BepInEx found — fresh install (BepInEx is bundled)."
+  mkdir -p "$GAME/BepInEx/core" "$GAME/BepInEx/plugins" "$GAME/BepInEx/config"
 fi
 
 for f in "$HERE/dist/FM26PlayerExport.dll" \
@@ -42,18 +45,18 @@ echo "== FM26 Player Export — macOS Compatibility Build =="
 echo "Game: $GAME"
 echo ""
 
-echo "== 1/4 Arm64 launcher + .NET runtime =="
+echo "== 1/5 Arm64 launcher + doorstop + .NET runtime =="
 bash "$HERE/setup_arm64.sh"
 
 echo ""
-echo "== 2/4 BepInEx core (full matched set) =="
+echo "== 2/5 BepInEx core (full matched set) =="
 # We install the COMPLETE BepInEx core we test against, not just the two
 # patched DLLs: mixing our patched assemblies with a different BepInEx
 # nightly fails at boot with e.g.
 #   MissingMethodException: BepInEx.Paths.get_DisplayBepInExVersion()
 CORE="$GAME/BepInEx/core"
 BACKUP="$CORE/backup-stock"
-if [ ! -d "$BACKUP" ]; then
+if [ ! -d "$BACKUP" ] && ls "$CORE"/*.dll >/dev/null 2>&1; then
   mkdir -p "$BACKUP"
   find "$CORE" -maxdepth 1 -type f \( -name "*.dll" -o -name "*.dylib" \) \
     -exec cp {} "$BACKUP/" \;
