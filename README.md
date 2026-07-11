@@ -1,10 +1,33 @@
-# FM26 Player Export — macOS Compatibility Build
+# FM26 Mods on macOS (Apple Silicon) — Compatibility Fix
 
-A community fork of [**FM26 Player Export by vinteset**](https://www.fmscout.com/) (v5.1) that makes **large player-list exports work on macOS Apple Silicon** — native arm64, no Rosetta crashes, stable scrolling through 500–10,000 rows.
+**BepInEx mods for Football Manager 26 on M1/M2/M3/M4 Macs.** Started as a fork of [**FM26 Player Export by vinteset**](https://www.fmscout.com/) (v5.1), grew into a full compatibility layer: native arm64 launcher, JIT-entitled shadow bundle, and a patched Il2CppInterop with an **arm64 injection scanner** — the missing piece that made *most* FM26 mods die on Apple Silicon with `GenericMethod::GetMethod not found`.
+
+**Status: beta, community-tested.** The fixes are in the shared layer (launcher / BepInEx core / Il2CppInterop), not per-mod — so mods we've never tried should work too. Broken for you? Open an issue with your `LogOutput.log`.
 
 Published at **[github.com/DadMych/fm26-player-export-macos](https://github.com/DadMych/fm26-player-export-macos)**.
 
 Pair with **[TFP FM](https://github.com/DadMych/tfp_fm)** scouting analytics *(currently in development)* — upload the exported CSV to get archetypes, squad analysis, and transfer advice. Support: **[buymeacoffee.com/tfpdev](https://buymeacoffee.com/tfpdev)**.
+
+---
+
+## Mod compatibility
+
+Confirmed working on Apple Silicon with this build:
+
+| Mod | Status |
+|-----|--------|
+| **FM26 Player Export** (bundled, our fork) | ✅ Working — 700+ row exports |
+| **Free Camera 1.7.0** | ✅ Working |
+| **3D-LiveActionCam 2.1.1** (Event Cam) | ✅ Working — custom cams load, Harmony patches apply |
+| **CameraInject 3.7.0** | ⚠️ Loads only with its `StadiumInjection.dll` dependency installed (not a macOS issue — same on Windows) |
+
+Anything using standard BepInEx APIs (`RegisterTypeInIl2Cpp`, Harmony patches, config, hotkeys) should work. Mod DLLs do **not** need to be re-signed — they're managed assemblies, macOS code signing never touches them.
+
+**Known limitations on arm64** (logged as warnings, safe to ignore for most mods):
+
+- `GenericMethod::GetMethod not found (arm64: likely inlined). Skipping hook` — generic methods on injected classes won't resolve (inlined in FM26's binary, nothing to hook).
+- `Class::GetDefaultFieldValue skipped on arm64` — custom default values for injected enum fields won't resolve.
+- `Managed detour for … skipped (MonoMod has no macOS arm64 support)` — the native detour is applied instead; Harmony patches still work because the game calls through the native side.
 
 ---
 
@@ -66,10 +89,12 @@ bash install_macos.sh
 This will:
 
 1. Install an arm64 .NET runtime + native launcher script into your game folder
-2. Install the **complete matched BepInEx core** we test against, including our `MainThreadTick` patch (your stock DLLs are backed up to `BepInEx/core/backup-stock/`)
+2. Install the **complete matched BepInEx core** we test against, including our `MainThreadTick` patch and the **arm64-patched Il2CppInterop** (your stock DLLs are backed up to `BepInEx/core/backup-stock/`)
 3. Install our `FM26PlayerExport.dll` into `BepInEx/plugins/`
 
-### Step 3 — Views: install TFP presets or make your own
+Other mods: just drop them into `BepInEx/plugins/` as usual — no re-signing, no per-mod setup.
+
+### Step 3 — Views: install TFP presets or make your own (for the export plugin)
 
 FM exports only the columns visible in your current table view. You need a view with enough attributes for meaningful analysis — either use ours or build your own.
 
@@ -112,7 +137,7 @@ cd "$FM26_GAME" && ./run_bepinex_arm64.sh
 "/full/path/to/Football Manager 26/run_bepinex_arm64.sh" %command%
 ```
 
-### Step 5 — Export in game
+### Step 5 — Export in game (Player Export plugin)
 
 1. Open the right screen and load a view (TFP presets or your own):
    - **Squad** → `tfp_fm_squad_v1` (or any squad view with full attributes)
@@ -219,7 +244,7 @@ If this saved you a few hours of crashing, a coffee helps keep [TFP FM / tfpdev]
 
 **[buymeacoffee.com/tfpdev](https://buymeacoffee.com/tfpdev)**
 
-No paywall on the plugin — MIT, free forever.
+No paywall — MIT, free forever.
 
 ---
 
