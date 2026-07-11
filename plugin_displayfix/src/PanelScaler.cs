@@ -23,14 +23,12 @@ public class PanelScaler : MonoBehaviour
 
     internal static float LastHeightRatio { get; private set; } = 1f;
     internal static float LastRefResWidth { get; private set; }
+    internal static float LastRefResHeight { get; private set; }
     internal static bool LastIsUltrawide { get; private set; }
     internal static bool LastIsTall { get; private set; }
 
     void LateUpdate()
     {
-        // FM26 only offers 16:9 resolutions; on 16:10/ultrawide displays the OS
-        // letterboxes the render. Re-check periodically because the game can reset
-        // the resolution (preferences screen, alt-tab, display change).
         if (Plugin.ForceNativeAspect.Value && ++_resolutionPollFrame >= 120)
         {
             _resolutionPollFrame = 0;
@@ -61,9 +59,6 @@ public class PanelScaler : MonoBehaviour
             h = disp.systemHeight;
             if (w <= 0 || h <= 0) return false;
 
-            // Notched MacBook panels report ~1.54 aspect, but macOS only gives
-            // fullscreen apps the area below the notch/menu bar, which Apple made
-            // exactly 16:10. Rendering taller than that gets letterboxed on all sides.
             float aspect = (float)w / h;
             if (aspect > 1.5f && aspect < 1.58f)
                 h = Mathf.RoundToInt(w / 1.6f);
@@ -127,11 +122,10 @@ public class PanelScaler : MonoBehaviour
         LastIsUltrawide = screenAspect > RefAspect + AspectTolerance;
         LastIsTall = screenAspect < RefAspect - AspectTolerance;
 
-        // Scale by the constrained dimension so the reference layout fits exactly:
-        // ultrawide -> height (then expand sideways), tall -> width (then expand down).
         float scale = LastIsTall ? screenW / refRes.x : screenH / refRes.y;
         LastHeightRatio = scale;
         LastRefResWidth = refRes.x;
+        LastRefResHeight = refRes.y;
 
         settings.scaleMode = PanelScaleMode.ConstantPixelSize;
         settings.scale = scale;
@@ -166,6 +160,8 @@ public class PanelScaler : MonoBehaviour
     private static readonly List<string> s_skipPrefixes = new List<string>();
     private static readonly Dictionary<long, float> s_tileOriginalWidths = new Dictionary<long, float>();
     private static readonly Dictionary<long, float> s_tileOriginalLefts = new Dictionary<long, float>();
+    private static readonly Dictionary<long, float> s_tileOriginalHeights = new Dictionary<long, float>();
+    private static readonly Dictionary<long, float> s_tileOriginalTops = new Dictionary<long, float>();
 
     private static void RefreshSkipNames()
     {
@@ -225,12 +221,66 @@ public class PanelScaler : MonoBehaviour
             {
                 ExpandElementHorizontal(root, 0, widthThreshold, false);
                 ExpandCardTemplates(root, 0);
-                ScanForGridLayouts(root, 0);
+                ScanForGridLayouts(root, 0, scaleWidth: true, scaleHeight: false);
             }
 
             if (LastIsTall)
+            {
+                ExpandTallScreenChrome(root, 0);
                 ExpandElementVertical(root, 0, heightThreshold, false);
+                ScanForGridLayouts(root, 0, scaleWidth: false, scaleHeight: true);
+            }
         }
+    }
+
+    /// <summary>
+    /// Pin in-game screen bodies below the nav bar and stretch dashboard content vertically.
+    /// </summary>
+    private static void ExpandTallScreenChrome(VisualElement ve, int depth)
+    {
+        if (ve == null || depth > 40) return;
+
+        try
+        {
+            if (ve.name == "Body")
+            {
+                float offsetY = 0f;
+                try { offsetY = ve.layout.y; } catch { }
+                if (offsetY > 2f)
+                {
+                    ve.style.height = StyleKeyword.Null;
+                    ve.style.maxHeight = StyleKeyword.None;
+                    ve.style.bottom = new StyleLength(new Length(0f, LengthUnit.Pixel));
+                    ve.style.overflow = Overflow.Hidden;
+                }
+            }
+
+            if (ve.name == "PortalScreen" || ve.name == "Overview" || ve.name == "Content")
+            {
+                ve.style.height = new StyleLength(new Length(100f, LengthUnit.Percent));
+                ve.style.maxHeight = StyleKeyword.None;
+                ve.style.flexGrow = 1f;
+                ve.style.overflow = Overflow.Hidden;
+            }
+
+            // Kill nested scroll when the parent already fits the viewport.
+            if (ve is ScrollView sv)
+            {
+                sv.verticalScrollerVisibility = ScrollerVisibility.Hidden;
+                sv.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
+                sv.mode = ScrollViewMode.Vertical;
+                var content = sv.contentContainer;
+                if (content != null)
+                {
+                    content.style.height = new StyleLength(new Length(100f, LengthUnit.Percent));
+                    content.style.minHeight = StyleKeyword.None;
+                }
+            }
+        }
+        catch { }
+
+        for (int i = 0; i < ve.childCount; i++)
+            ExpandTallScreenChrome(ve[i], depth + 1);
     }
 
     private static void ExpandElementHorizontal(VisualElement ve, int depth, float threshold, bool skipExpansion)
@@ -281,9 +331,20 @@ public class PanelScaler : MonoBehaviour
         {
             if (depth <= 2)
             {
-                ve.style.height = new StyleLength(new Length(100f, LengthUnit.Percent));
-                ve.style.maxHeight = StyleKeyword.None;
-                ve.style.minHeight = StyleKeyword.None;
+                float offsetY = 0f;
+                try { offsetY = ve.layout.y; } catch { }
+                if (offsetY <= 2f)
+                {
+                    ve.style.height = new StyleLength(new Length(100f, LengthUnit.Percent));
+                    ve.style.maxHeight = StyleKeyword.None;
+                    ve.style.minHeight = StyleKeyword.None;
+                }
+                else
+                {
+                    ve.style.height = StyleKeyword.Null;
+                    ve.style.maxHeight = StyleKeyword.None;
+                    ve.style.bottom = new StyleLength(new Length(0f, LengthUnit.Pixel));
+                }
                 if (depth <= 1)
                     ForceFullWidth(ve);
 
@@ -297,10 +358,11 @@ public class PanelScaler : MonoBehaviour
             else
             {
                 float h = TryGetLayoutHeight(ve);
-                if (h >= threshold && !ParentIsColumnFlex(ve))
+                if (h >= threshold && !HasVisibleVerticalSibling(ve))
                 {
                     ve.style.maxHeight = StyleKeyword.None;
                     ve.style.height = new StyleLength(new Length(100f, LengthUnit.Percent));
+                    ve.style.flexGrow = 1f;
                     ve.style.marginTop = new StyleLength(new Length(0f, LengthUnit.Pixel));
                     ve.style.marginBottom = new StyleLength(new Length(0f, LengthUnit.Pixel));
                 }
@@ -357,39 +419,34 @@ public class PanelScaler : MonoBehaviour
         catch { }
     }
 
-    private static void ScanForGridLayouts(VisualElement ve, int depth)
+    private static void ScanForGridLayouts(VisualElement ve, int depth, bool scaleWidth, bool scaleHeight)
     {
         if (ve == null || depth > 35) return;
         if (ve.name == "GridLayoutElementContent")
-            ScaleGridTiles(ve);
+            ScaleGridTiles(ve, scaleWidth, scaleHeight);
         for (int i = 0; i < ve.childCount; i++)
-            ScanForGridLayouts(ve[i], depth + 1);
+            ScanForGridLayouts(ve[i], depth + 1, scaleWidth, scaleHeight);
     }
 
-    private static void ScaleGridTiles(VisualElement container)
+    private static void ScaleGridTiles(VisualElement container, bool scaleWidth, bool scaleHeight)
     {
-        if (LastRefResWidth <= 0f || LastHeightRatio <= 0f) return;
+        if (LastRefResWidth <= 0f || LastRefResHeight <= 0f || LastHeightRatio <= 0f) return;
 
         float logicalCanvasW = Screen.width / LastHeightRatio;
-        float ratio = logicalCanvasW / LastRefResWidth;
-        if (ratio < 1.05f) return;
+        float logicalCanvasH = Screen.height / LastHeightRatio;
+        float ratioW = logicalCanvasW / LastRefResWidth;
+        float ratioH = logicalCanvasH / LastRefResHeight;
 
-        VisualElement percentChild = null;
-        for (int i = 0; i < container.childCount; i++)
-        {
-            var c = container[i];
-            if (c == null) continue;
-            try
-            {
-                var ws = c.style.width;
-                if (ws.keyword == StyleKeyword.Undefined
-                    && ws.value.unit == LengthUnit.Percent
-                    && percentChild == null)
-                    percentChild = c;
-            }
-            catch { }
-        }
-        if (percentChild != null) return;
+        if (scaleWidth && ratioW < 1.02f) scaleWidth = false;
+
+        // On tall screens the logical canvas height often matches the 16:9 reference, but
+        // dashboard tiles are absolutely positioned for a shorter content band — stretch
+        // them to fill the grid container instead of leaving a scrollable gap.
+        if (scaleHeight)
+            ratioH = ComputeGridHeightRatio(container, ratioH);
+
+        if (scaleHeight && ratioH < 1.02f) scaleHeight = false;
+        if (!scaleWidth && !scaleHeight) return;
 
         for (int i = 0; i < container.childCount; i++)
         {
@@ -400,26 +457,105 @@ public class PanelScaler : MonoBehaviour
                 long key = child.Pointer.ToInt64();
                 var ws = child.style.width;
                 if (ws.keyword == StyleKeyword.Undefined
+                    && ws.value.unit == LengthUnit.Percent)
+                    continue;
+
+                if (ws.keyword == StyleKeyword.Undefined
                     && ws.value.unit == LengthUnit.Pixel
                     && ws.value.value > 0f)
                 {
                     float baseW = s_tileOriginalWidths.TryGetValue(key, out float sw) ? sw : ws.value.value;
                     if (!s_tileOriginalWidths.ContainsKey(key)) s_tileOriginalWidths[key] = ws.value.value;
-                    child.style.width = new StyleLength(new Length(baseW * ratio, LengthUnit.Pixel));
+                    if (scaleWidth)
+                        child.style.width = new StyleLength(new Length(baseW * ratioW, LengthUnit.Pixel));
                 }
 
                 var ls = child.style.left;
-                if (ls.keyword == StyleKeyword.Undefined
+                if (scaleWidth
+                    && ls.keyword == StyleKeyword.Undefined
                     && ls.value.unit == LengthUnit.Pixel
                     && ls.value.value > 0f)
                 {
                     float baseL = s_tileOriginalLefts.TryGetValue(key, out float sl) ? sl : ls.value.value;
                     if (!s_tileOriginalLefts.ContainsKey(key)) s_tileOriginalLefts[key] = ls.value.value;
-                    child.style.left = new StyleLength(new Length(baseL * ratio, LengthUnit.Pixel));
+                    child.style.left = new StyleLength(new Length(baseL * ratioW, LengthUnit.Pixel));
+                }
+
+                var hs = child.style.height;
+                if (scaleHeight
+                    && hs.keyword == StyleKeyword.Undefined
+                    && hs.value.unit == LengthUnit.Pixel
+                    && hs.value.value > 0f)
+                {
+                    float baseH = s_tileOriginalHeights.TryGetValue(key, out float sh) ? sh : hs.value.value;
+                    if (!s_tileOriginalHeights.ContainsKey(key)) s_tileOriginalHeights[key] = hs.value.value;
+                    child.style.height = new StyleLength(new Length(baseH * ratioH, LengthUnit.Pixel));
+                }
+
+                var ts = child.style.top;
+                if (scaleHeight
+                    && ts.keyword == StyleKeyword.Undefined
+                    && ts.value.unit == LengthUnit.Pixel
+                    && ts.value.value > 0f)
+                {
+                    float baseT = s_tileOriginalTops.TryGetValue(key, out float st) ? st : ts.value.value;
+                    if (!s_tileOriginalTops.ContainsKey(key)) s_tileOriginalTops[key] = ts.value.value;
+                    child.style.top = new StyleLength(new Length(baseT * ratioH, LengthUnit.Pixel));
                 }
             }
             catch { }
         }
+    }
+
+    private static float ComputeGridHeightRatio(VisualElement container, float aspectRatio)
+    {
+        try
+        {
+            float containerH = container.layout.height;
+            if (containerH <= 1f)
+            {
+                var p = container.parent;
+                if (p != null) containerH = p.layout.height;
+            }
+            if (containerH <= 1f) return aspectRatio;
+
+            float designBottom = 0f;
+            for (int i = 0; i < container.childCount; i++)
+            {
+                var child = container[i];
+                if (child == null) continue;
+
+                float top = 0f, height = 0f;
+                try
+                {
+                    var ts = child.style.top;
+                    if (ts.keyword == StyleKeyword.Undefined && ts.value.unit == LengthUnit.Pixel)
+                        top = ts.value.value;
+                    else
+                        top = child.layout.y;
+                }
+                catch { }
+
+                try
+                {
+                    var hs = child.style.height;
+                    if (hs.keyword == StyleKeyword.Undefined && hs.value.unit == LengthUnit.Pixel)
+                        height = hs.value.value;
+                    else
+                        height = child.layout.height;
+                }
+                catch { }
+
+                if (height > 1f)
+                    designBottom = Math.Max(designBottom, top + height);
+            }
+
+            if (designBottom > 1f && containerH > designBottom + 4f)
+                return Math.Max(aspectRatio, containerH / designBottom);
+        }
+        catch { }
+
+        return aspectRatio;
     }
 
     private static void ForceFullWidth(VisualElement ve)
@@ -450,29 +586,45 @@ public class PanelScaler : MonoBehaviour
             }
             catch { }
         }
+
+        try
+        {
+            var p = ve.parent;
+            if (p == null) return false;
+            float myY = ve.layout.y;
+            long myPtr = ve.Pointer.ToInt64();
+            for (int i = 0; i < p.childCount; i++)
+            {
+                var sib = p[i];
+                if (sib == null) continue;
+                if (sib.Pointer.ToInt64() == myPtr) continue;
+                if (sib.layout.width <= 1f) continue;
+                if (Math.Abs(sib.layout.y - myY) < 2f) return true;
+            }
+        }
+        catch { }
+
         return false;
     }
 
-    private static bool ParentIsColumnFlex(VisualElement ve)
+    private static bool HasVisibleVerticalSibling(VisualElement ve)
     {
         try
         {
             var p = ve.parent;
             if (p == null) return false;
-            return p.resolvedStyle.flexDirection == FlexDirection.Column;
-        }
-        catch
-        {
-            try
+            float myY = ve.layout.y;
+            long myPtr = ve.Pointer.ToInt64();
+            for (int i = 0; i < p.childCount; i++)
             {
-                var p = ve.parent;
-                if (p == null) return false;
-                var fd = p.style.flexDirection;
-                if (fd.keyword == StyleKeyword.Undefined)
-                    return fd.value == FlexDirection.Column;
+                var sib = p[i];
+                if (sib == null) continue;
+                if (sib.Pointer.ToInt64() == myPtr) continue;
+                if (sib.layout.width <= 1f || sib.layout.height <= 1f) continue;
+                if (Math.Abs(sib.layout.y - myY) >= 2f) return true;
             }
-            catch { }
         }
+        catch { }
         return false;
     }
 

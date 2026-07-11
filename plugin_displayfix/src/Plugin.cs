@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace FM26DisplayFix;
 
-[BepInPlugin("com.tfpdev.fm26displayfix", "FM26 Display Fix", "1.0.0")]
+[BepInPlugin("com.tfpdev.fm26displayfix", "FM26 Display Fix", "1.0.2")]
 public class Plugin : BasePlugin
 {
     internal static new ManualLogSource Log = null!;
@@ -37,8 +37,9 @@ public class Plugin : BasePlugin
         PatchMatchCamera = Config.Bind("Patches", "PatchMatchCamera", true,
             "Correct match-engine camera aspect ratio");
         SkipExpansionElements = Config.Bind("Patches", "SkipExpansionElements",
-            "ModalDialog,GenericModalDialog,Card,ExternalNewsDynamicCard",
-            "Comma-separated UI element names (or Prefix*) excluded from layout expansion");
+            "ModalDialog,GenericModalDialog,ExternalNewsDynamicCard",
+            "Comma-separated UI element names (or Prefix*) excluded from layout expansion. " +
+            "Do not add 'Card' — Portal/dashboard widgets use that name.");
 
         if (!Enabled.Value)
         {
