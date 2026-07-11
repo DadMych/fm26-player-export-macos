@@ -23,6 +23,7 @@ public class PanelScaler : MonoBehaviour
 
     internal static float LastHeightRatio { get; private set; } = 1f;
     internal static float LastRefResWidth { get; private set; }
+    internal static float LastRefResHeight { get; private set; }
     internal static bool LastIsUltrawide { get; private set; }
     internal static bool LastIsTall { get; private set; }
 
@@ -132,6 +133,7 @@ public class PanelScaler : MonoBehaviour
         float scale = LastIsTall ? screenW / refRes.x : screenH / refRes.y;
         LastHeightRatio = scale;
         LastRefResWidth = refRes.x;
+        LastRefResHeight = refRes.y;
 
         settings.scaleMode = PanelScaleMode.ConstantPixelSize;
         settings.scale = scale;
@@ -166,6 +168,8 @@ public class PanelScaler : MonoBehaviour
     private static readonly List<string> s_skipPrefixes = new List<string>();
     private static readonly Dictionary<long, float> s_tileOriginalWidths = new Dictionary<long, float>();
     private static readonly Dictionary<long, float> s_tileOriginalLefts = new Dictionary<long, float>();
+    private static readonly Dictionary<long, float> s_tileOriginalHeights = new Dictionary<long, float>();
+    private static readonly Dictionary<long, float> s_tileOriginalTops = new Dictionary<long, float>();
 
     private static void RefreshSkipNames()
     {
@@ -221,15 +225,22 @@ public class PanelScaler : MonoBehaviour
             var root = doc.rootVisualElement;
             if (root == null) continue;
 
-            if (LastIsUltrawide)
+            // Portal / dashboard grids need horizontal expansion on ultrawide AND tall
+            // (tall displays still use 16:9-positioned pixel tiles with gaps on right/bottom).
+            if (LastIsUltrawide || LastIsTall)
             {
                 ExpandElementHorizontal(root, 0, widthThreshold, false);
                 ExpandCardTemplates(root, 0);
-                ScanForGridLayouts(root, 0);
             }
 
+            if (LastIsUltrawide)
+                ScanForGridLayouts(root, 0, scaleWidth: true, scaleHeight: false);
+
             if (LastIsTall)
+            {
                 ExpandElementVertical(root, 0, heightThreshold, false);
+                ScanForGridLayouts(root, 0, scaleWidth: true, scaleHeight: true);
+            }
         }
     }
 
@@ -357,22 +368,56 @@ public class PanelScaler : MonoBehaviour
         catch { }
     }
 
-    private static void ScanForGridLayouts(VisualElement ve, int depth)
+    private static void ScanForGridLayouts(VisualElement ve, int depth, bool scaleWidth, bool scaleHeight)
     {
         if (ve == null || depth > 35) return;
         if (ve.name == "GridLayoutElementContent")
-            ScaleGridTiles(ve);
+        {
+            ExpandGridContainer(ve);
+            ScaleGridTiles(ve, scaleWidth, scaleHeight);
+        }
         for (int i = 0; i < ve.childCount; i++)
-            ScanForGridLayouts(ve[i], depth + 1);
+            ScanForGridLayouts(ve[i], depth + 1, scaleWidth, scaleHeight);
     }
 
-    private static void ScaleGridTiles(VisualElement container)
+    private static void ExpandGridContainer(VisualElement container)
     {
-        if (LastRefResWidth <= 0f || LastHeightRatio <= 0f) return;
+        try
+        {
+            float canvasW = LastHeightRatio > 0f ? Screen.width / LastHeightRatio : Screen.width;
+            float canvasH = LastHeightRatio > 0f ? Screen.height / LastHeightRatio : Screen.height;
+
+            container.style.width = new StyleLength(new Length(100f, LengthUnit.Percent));
+            container.style.height = new StyleLength(new Length(100f, LengthUnit.Percent));
+            container.style.maxWidth = StyleKeyword.None;
+            container.style.maxHeight = StyleKeyword.None;
+            container.style.minWidth = StyleKeyword.None;
+            container.style.minHeight = StyleKeyword.None;
+
+            var parent = container.parent;
+            if (parent != null)
+            {
+                parent.style.width = new StyleLength(new Length(100f, LengthUnit.Percent));
+                parent.style.height = new StyleLength(new Length(100f, LengthUnit.Percent));
+                parent.style.maxWidth = StyleKeyword.None;
+                parent.style.maxHeight = StyleKeyword.None;
+            }
+        }
+        catch { }
+    }
+
+    private static void ScaleGridTiles(VisualElement container, bool scaleWidth, bool scaleHeight)
+    {
+        if (LastRefResWidth <= 0f || LastRefResHeight <= 0f || LastHeightRatio <= 0f) return;
 
         float logicalCanvasW = Screen.width / LastHeightRatio;
-        float ratio = logicalCanvasW / LastRefResWidth;
-        if (ratio < 1.05f) return;
+        float logicalCanvasH = Screen.height / LastHeightRatio;
+        float ratioW = logicalCanvasW / LastRefResWidth;
+        float ratioH = logicalCanvasH / LastRefResHeight;
+
+        if (scaleWidth && ratioW < 1.05f) scaleWidth = false;
+        if (scaleHeight && ratioH < 1.05f) scaleHeight = false;
+        if (!scaleWidth && !scaleHeight) return;
 
         VisualElement percentChild = null;
         for (int i = 0; i < container.childCount; i++)
@@ -389,7 +434,7 @@ public class PanelScaler : MonoBehaviour
             }
             catch { }
         }
-        if (percentChild != null) return;
+        // Don't bail when a percent-width background exists — scale pixel-positioned tiles anyway.
 
         for (int i = 0; i < container.childCount; i++)
         {
@@ -400,22 +445,50 @@ public class PanelScaler : MonoBehaviour
                 long key = child.Pointer.ToInt64();
                 var ws = child.style.width;
                 if (ws.keyword == StyleKeyword.Undefined
+                    && ws.value.unit == LengthUnit.Percent)
+                    continue;
+
+                if (ws.keyword == StyleKeyword.Undefined
                     && ws.value.unit == LengthUnit.Pixel
                     && ws.value.value > 0f)
                 {
                     float baseW = s_tileOriginalWidths.TryGetValue(key, out float sw) ? sw : ws.value.value;
                     if (!s_tileOriginalWidths.ContainsKey(key)) s_tileOriginalWidths[key] = ws.value.value;
-                    child.style.width = new StyleLength(new Length(baseW * ratio, LengthUnit.Pixel));
+                    if (scaleWidth)
+                        child.style.width = new StyleLength(new Length(baseW * ratioW, LengthUnit.Pixel));
                 }
 
                 var ls = child.style.left;
-                if (ls.keyword == StyleKeyword.Undefined
+                if (scaleWidth
+                    && ls.keyword == StyleKeyword.Undefined
                     && ls.value.unit == LengthUnit.Pixel
                     && ls.value.value > 0f)
                 {
                     float baseL = s_tileOriginalLefts.TryGetValue(key, out float sl) ? sl : ls.value.value;
                     if (!s_tileOriginalLefts.ContainsKey(key)) s_tileOriginalLefts[key] = ls.value.value;
-                    child.style.left = new StyleLength(new Length(baseL * ratio, LengthUnit.Pixel));
+                    child.style.left = new StyleLength(new Length(baseL * ratioW, LengthUnit.Pixel));
+                }
+
+                var hs = child.style.height;
+                if (scaleHeight
+                    && hs.keyword == StyleKeyword.Undefined
+                    && hs.value.unit == LengthUnit.Pixel
+                    && hs.value.value > 0f)
+                {
+                    float baseH = s_tileOriginalHeights.TryGetValue(key, out float sh) ? sh : hs.value.value;
+                    if (!s_tileOriginalHeights.ContainsKey(key)) s_tileOriginalHeights[key] = hs.value.value;
+                    child.style.height = new StyleLength(new Length(baseH * ratioH, LengthUnit.Pixel));
+                }
+
+                var ts = child.style.top;
+                if (scaleHeight
+                    && ts.keyword == StyleKeyword.Undefined
+                    && ts.value.unit == LengthUnit.Pixel
+                    && ts.value.value > 0f)
+                {
+                    float baseT = s_tileOriginalTops.TryGetValue(key, out float st) ? st : ts.value.value;
+                    if (!s_tileOriginalTops.ContainsKey(key)) s_tileOriginalTops[key] = ts.value.value;
+                    child.style.top = new StyleLength(new Length(baseT * ratioH, LengthUnit.Pixel));
                 }
             }
             catch { }
@@ -450,6 +523,24 @@ public class PanelScaler : MonoBehaviour
             }
             catch { }
         }
+
+        try
+        {
+            var p = ve.parent;
+            if (p == null) return false;
+            float myY = ve.layout.y;
+            long myPtr = ve.Pointer.ToInt64();
+            for (int i = 0; i < p.childCount; i++)
+            {
+                var sib = p[i];
+                if (sib == null) continue;
+                if (sib.Pointer.ToInt64() == myPtr) continue;
+                if (sib.layout.width <= 1f) continue;
+                if (Math.Abs(sib.layout.y - myY) < 2f) return true;
+            }
+        }
+        catch { }
+
         return false;
     }
 
@@ -492,6 +583,16 @@ public class PanelScaler : MonoBehaviour
         }
         catch { }
 
+        try
+        {
+            var ws = ve.style.width;
+            if (ws.keyword == StyleKeyword.Undefined
+                && ws.value.unit == LengthUnit.Pixel
+                && ws.value.value > 0f)
+                return ws.value.value;
+        }
+        catch { }
+
         return -1f;
     }
 
@@ -508,6 +609,16 @@ public class PanelScaler : MonoBehaviour
         {
             float rh = ve.resolvedStyle.height;
             if (!float.IsNaN(rh) && rh > 0f) return rh;
+        }
+        catch { }
+
+        try
+        {
+            var hs = ve.style.height;
+            if (hs.keyword == StyleKeyword.Undefined
+                && hs.value.unit == LengthUnit.Pixel
+                && hs.value.value > 0f)
+                return hs.value.value;
         }
         catch { }
 

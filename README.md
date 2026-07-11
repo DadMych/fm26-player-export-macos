@@ -213,7 +213,7 @@ Height = 0
 PatchMatchCamera = true
 
 # UI element names excluded from layout expansion (comma-separated; Prefix* wildcards)
-SkipExpansionElements = ModalDialog,GenericModalDialog,Card,ExternalNewsDynamicCard
+SkipExpansionElements = ModalDialog,GenericModalDialog,ExternalNewsDynamicCard
 ```
 
 Set `Enabled = false` to disable without uninstalling. Delete the `.cfg` to regenerate defaults.
