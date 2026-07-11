@@ -16,7 +16,7 @@ Confirmed working on Apple Silicon with this build:
 
 | Mod | Status |
 |-----|--------|
-| **FM26 Display Fix** (bundled) | ✅ **16:10 MacBooks** + ultrawide — scales menus to fill the screen (empty gap at bottom/sides) |
+| **FM26 Display Fix** (bundled) | ✅ **16:10 MacBooks** + ultrawide — community-tested on M3 Pro 14"; removes letterboxing and fills menus edge-to-edge |
 | **FM26 Player Export** (bundled, our fork) | ✅ Working — 700+ row exports |
 | **Free Camera 1.7.0** | ✅ Working |
 | **3D-LiveActionCam 2.1.1** (Event Cam) | ✅ Working — custom cams load, Harmony patches apply |
@@ -47,6 +47,39 @@ Anything using standard BepInEx APIs (`RegisterTypeInIl2Cpp`, Harmony patches, c
 | Empty cells in FM custom views | Read SI.Bindable text correctly |
 
 Full BepInEx patch notes: [`docs/BEPINEX-PATCH.md`](docs/BEPINEX-PATCH.md).
+
+---
+
+## FM26 Display Fix
+
+FM26 ships with **no proper support for non-16:9 displays**. On a 14" MacBook (16:10) or an ultrawide monitor, the game renders at 16:9 and macOS adds **black letterbox/pillarbox bars** around the UI — empty gaps at the bottom of menus, or dead space on the sides.
+
+**FM26 Display Fix** is bundled with this repo and installed automatically by `install_macos.sh`. It is based on [LionelFW/fm26ultrawidefix](https://github.com/LionelFW/fm26ultrawidefix) (ultrawide menu scaling) and extended for **tall aspects** (16:10 MacBooks, 3:2 tablets).
+
+### What it does
+
+1. **Forces native display aspect** — intercepts `Screen.SetResolution` so the game can't revert to 16:9 after startup. On notched MacBooks, auto-detect uses a 16:10 render size (the area macOS actually gives fullscreen apps below the menu bar).
+2. **Scales UI Toolkit panels** — Harmony hook on `PanelSettings.ApplyPanelSettings` adjusts panel scale for the real screen size.
+3. **Expands layout** — a polling `PanelScaler` widens elements on ultrawide and stretches vertically on 16:10, re-applied every 30 frames (FM26 resets styles on scene changes).
+
+Match-engine camera aspect correction is optional (`PatchMatchCamera` in config).
+
+### Verify it loaded
+
+After launching via `run_bepinex_arm64.sh`, check `BepInEx/LogOutput.log`:
+
+```
+[Info   :FM26 Display Fix] FM26 Display Fix loaded (16:10 + ultrawide).
+[Info   :FM26 Display Fix] SetResolution intercepted: 1920x1080 (...) -> 2940x1838 (FullScreenWindow)
+```
+
+If you see those lines and the menu fills your screen with no black bars, it's working.
+
+### Known quirks
+
+Same as the original ultrawide fix: a few main-menu elements may be slightly cropped or offset. The mod is **beta** — report screens that still have dead space in an issue with your resolution and `LogOutput.log`.
+
+To disable without uninstalling: set `Enabled = false` in config (see [Configuration](#configuration) below).
 
 ---
 
@@ -92,6 +125,8 @@ This will:
 1. Install an arm64 .NET runtime + native launcher script into your game folder
 2. Install the **complete matched BepInEx core** we test against, including our `MainThreadTick` patch and the **arm64-patched Il2CppInterop** (your stock DLLs are backed up to `BepInEx/core/backup-stock/`)
 3. Install our `FM26PlayerExport.dll` into `BepInEx/plugins/`
+4. Install **FM26 Display Fix** into `BepInEx/plugins/FM26DisplayFix/` (16:10 + ultrawide menu scaling)
+5. Copy TFP view presets into `~/Library/Application Support/Sports Interactive/Football Manager 26/views/` (optional, for the export plugin)
 
 Other mods: just drop them into `BepInEx/plugins/` as usual — no re-signing, no per-mod setup.
 
@@ -190,6 +225,8 @@ SkipExpansionElements = ModalDialog,GenericModalDialog,Card,ExternalNewsDynamicC
 
 Set `Enabled = false` to disable without uninstalling. Delete the `.cfg` to regenerate defaults.
 
+If auto-detect picks the wrong size (black bars on one or more sides), set both `Width` and `Height` explicitly to your display's pixel dimensions — e.g. a 14" MBP at default scaling is often `2940` × `1838` (16:10 usable area, not the raw `2940` × `1912` system size).
+
 ### FM26 Player Export
 
 After the first export, edit:
@@ -265,8 +302,10 @@ FM26_GAME="/path/to/Football Manager 26" bash install_macos.sh
 | Export finishes early | Scroll the list manually before F9; ensure rows are selected |
 | Empty / `-` attributes | Use a view with full attribute columns |
 | `No space left on device` | BepInEx cannot flush logs or write CSV — free several GB |
+| **Black bars** on all sides, or menus still have empty gaps | Display Fix not loaded — check `LogOutput.log` for `FM26 Display Fix loaded`. Re-run `install_macos.sh`. If loaded but wrong size, set `Width`/`Height` in `com.tfpdev.fm26displayfix.cfg` (see [FM26 Display Fix](#fm26-display-fix)). |
+| Display Fix loads but UI looks cropped/offset | Known quirk on some screens — add element names to `SkipExpansionElements` or disable with `Enabled = false` and report in an issue |
 
-Logs: `Football Manager 26/BepInEx/LogOutput.log` — look for `[FM26Export]` lines.
+Logs: `Football Manager 26/BepInEx/LogOutput.log` — look for `[FM26Export]` or `[FM26 Display Fix]` lines.
 
 ---
 
