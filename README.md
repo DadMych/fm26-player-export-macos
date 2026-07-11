@@ -114,10 +114,14 @@ This will:
 3. Install our `FM26PlayerExport.dll` into `BepInEx/plugins/`
 4. Install **FM26 Display Fix** into `BepInEx/plugins/FM26DisplayFix/` (16:10 + ultrawide menu scaling)
 5. Copy TFP view presets into `~/Library/Application Support/Sports Interactive/Football Manager 26/views/` (optional, for the export plugin)
+6. Clear **Gatekeeper quarantine** on BepInEx files, doorstop, and the launcher (`xattr -dr com.apple.quarantine`)
+7. Set **Steam launch options** for FM26 (app id `3551340`) to `run_bepinex_arm64.sh` in `~/Library/Application Support/Steam/userdata/*/config/localconfig.vdf`
 
 Other mods: just drop them into `BepInEx/plugins/` as usual — no re-signing, no per-mod setup.
 
 > **First launch takes a few minutes:** BepInEx generates Il2Cpp interop assemblies from your game install (stored under `~/fm26_bep/interop`). This happens once; later launches are fast.
+
+> **Steam:** after install, **quit Steam completely** (Cmd+Q) and reopen it so launch options take effect. Skip auto-config with `FM26_SKIP_STEAM_LAUNCH=1 bash install_macos.sh`.
 
 ### Step 2 — Views: install TFP presets or make your own (for the export plugin)
 
@@ -148,19 +152,19 @@ Minimum for most tools: **Name + Position + ~20 known attributes**. More visible
 
 **Loading a view in game:** right-click the table header → **Import View** → pick the file → **Load**.
 
-### Step 3 — Always launch through arm64
+### Step 3 — Launch (Steam or manual)
 
-**Do not** use Steam’s default launch on Apple Silicon — it may run under Rosetta and break hooks.
+The installer sets Steam launch options automatically. After install, **quit Steam completely** (Cmd+Q) and reopen — then launch FM26 from your library as usual.
+
+To skip Steam auto-config: `FM26_SKIP_STEAM_LAUNCH=1 bash install_macos.sh`
+
+**Manual launch** (if not using Steam):
 
 ```bash
 cd "$FM26_GAME" && ./run_bepinex_arm64.sh
 ```
 
-**Steam launch options** (Properties → Launch Options):
-
-```
-"/full/path/to/Football Manager 26/run_bepinex_arm64.sh" %command%
-```
+**Do not** use Steam’s default launch on Apple Silicon without our wrapper — it may run under Rosetta and break hooks.
 
 ### Step 4 — Export in game (Player Export plugin)
 
@@ -293,6 +297,8 @@ FM26_GAME="/path/to/Football Manager 26" bash install_macos.sh
 | `No space left on device` | BepInEx cannot flush logs or write CSV — free several GB |
 | **Black bars** on all sides, or menus still have empty gaps | Display Fix not loaded — check `LogOutput.log` for `FM26 Display Fix loaded`. Re-run `install_macos.sh`. If loaded but wrong size, set `Width`/`Height` in `com.tfpdev.fm26displayfix.cfg` (see [FM26 Display Fix](#fm26-display-fix)). |
 | Display Fix loads but UI looks cropped/offset | Known quirk on some screens — add element names to `SkipExpansionElements` or disable with `Enabled = false` and report in an issue |
+| macOS blocks BepInEx / “damaged” dylib warnings | Re-run `install_macos.sh` (clears quarantine), or manually: `xattr -dr com.apple.quarantine "$FM26_GAME/BepInEx" "$FM26_GAME/libdoorstop.dylib"` |
+| Steam still launches without mods | Quit Steam fully (Cmd+Q), reopen, or run `bash scripts/configure_steam.sh` with `FM26_GAME` set |
 
 Logs: `Football Manager 26/BepInEx/LogOutput.log` — look for `[FM26Export]` or `[FM26 Display Fix]` lines.
 

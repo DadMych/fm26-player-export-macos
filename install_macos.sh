@@ -45,11 +45,11 @@ echo "== FM26 Player Export — macOS Compatibility Build =="
 echo "Game: $GAME"
 echo ""
 
-echo "== 1/5 Arm64 launcher + doorstop + .NET runtime =="
+echo "== 1/7 Arm64 launcher + doorstop + .NET runtime =="
 bash "$HERE/setup_arm64.sh"
 
 echo ""
-echo "== 2/5 BepInEx core (full matched set) =="
+echo "== 2/7 BepInEx core (full matched set) =="
 # We install the COMPLETE BepInEx core we test against, not just the two
 # patched DLLs: mixing our patched assemblies with a different BepInEx
 # nightly fails at boot with e.g.
@@ -68,14 +68,14 @@ find "$GAME/BepInEx" -name "._*" -delete 2>/dev/null || true
 echo "   installed $(ls "$HERE/dist/bepinex-core" | wc -l | tr -d ' ') core files"
 
 echo ""
-echo "== 3/5 Export plugin =="
+echo "== 3/7 Export plugin =="
 PLUGIN_DEST="$GAME/BepInEx/plugins/FM26PlayerExport"
 mkdir -p "$PLUGIN_DEST"
 cp "$HERE/dist/FM26PlayerExport.dll" "$PLUGIN_DEST/FM26PlayerExport.dll"
 echo "   installed $PLUGIN_DEST/FM26PlayerExport.dll"
 
 echo ""
-echo "== 4/5 Display Fix plugin (16:10 + ultrawide menus) =="
+echo "== 4/7 Display Fix plugin (16:10 + ultrawide menus) =="
 if [ -f "$HERE/dist/FM26DisplayFix.dll" ]; then
   DISPLAY_DEST="$GAME/BepInEx/plugins/FM26DisplayFix"
   mkdir -p "$DISPLAY_DEST"
@@ -86,7 +86,7 @@ else
 fi
 
 echo ""
-echo "== 5/5 TFP view presets (optional) =="
+echo "== 5/7 TFP view presets (optional) =="
 VIEWS_DEST="$HOME/Library/Application Support/Sports Interactive/Football Manager 26/views"
 if [ -d "$HERE/views" ]; then
   mkdir -p "$VIEWS_DEST"
@@ -101,12 +101,41 @@ else
 fi
 
 echo ""
+echo "== 6/7 Gatekeeper (clear quarantine) =="
+chmod +x "$GAME/run_bepinex_arm64.sh" 2>/dev/null || true
+for path in \
+  "$GAME/BepInEx" \
+  "$GAME/libdoorstop.dylib" \
+  "$GAME/run_bepinex_arm64.sh" \
+  "$GAME/dotnet_arm64"; do
+  if [ -e "$path" ]; then
+    xattr -dr com.apple.quarantine "$path" 2>/dev/null || true
+    echo "   cleared quarantine: $path"
+  fi
+done
+BEP="${FM26_BEP:-$HOME/fm26_bep}"
+for path in "$BEP/dotnet_arm64" "$BEP/fm.app"; do
+  if [ -e "$path" ]; then
+    xattr -dr com.apple.quarantine "$path" 2>/dev/null || true
+    echo "   cleared quarantine: $path"
+  fi
+done
+
+echo ""
+echo "== 7/7 Steam launch options (optional) =="
+if [ "${FM26_SKIP_STEAM_LAUNCH:-0}" = "1" ]; then
+  echo "   skipped (FM26_SKIP_STEAM_LAUNCH=1)"
+else
+  bash "$HERE/scripts/configure_steam.sh" "$GAME"
+fi
+
+echo ""
 echo "== Done =="
 echo ""
-echo "Launch FM26 through the arm64 wrapper (required on Apple Silicon):"
+echo "Launch FM26 through Steam (launch options set automatically) or manually:"
 echo "  cd \"$GAME\" && ./run_bepinex_arm64.sh"
 echo ""
-echo "Steam → FM26 → Properties → Launch Options:"
+echo "If Steam still uses the stock launcher, set Properties → Launch Options to:"
 echo "  \"$GAME/run_bepinex_arm64.sh\" %command%"
 echo ""
 echo "In game — load a view (TFP presets or your own), select rows, press F9:"
