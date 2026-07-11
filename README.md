@@ -19,7 +19,6 @@ Confirmed working on Apple Silicon with this build:
 | **FM26 Player Export** (bundled, our fork) | ✅ Working — 700+ row exports |
 | **Free Camera 1.7.0** | ✅ Working |
 | **3D-LiveActionCam 2.1.1** (Event Cam) | ✅ Working — custom cams load, Harmony patches apply |
-| **CameraInject 3.7.0** | ⚠️ Loads only with its `StadiumInjection.dll` dependency installed (not a macOS issue — same on Windows) |
 
 Anything using standard BepInEx APIs (`RegisterTypeInIl2Cpp`, Harmony patches, config, hotkeys) should work. Mod DLLs do **not** need to be re-signed — they're managed assemblies, macOS code signing never touches them.
 
