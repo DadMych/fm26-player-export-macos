@@ -1,3 +1,6 @@
 # macOS build artifacts
 plugin/bin/
 plugin/obj/
+
+plugin_displayfix/bin/
+plugin_displayfix/obj/

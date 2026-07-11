@@ -16,6 +16,7 @@ Confirmed working on Apple Silicon with this build:
 
 | Mod | Status |
 |-----|--------|
+| **FM26 Display Fix** (bundled) | ✅ **16:10 MacBooks** + ultrawide — scales menus to fill the screen (empty gap at bottom/sides) |
 | **FM26 Player Export** (bundled, our fork) | ✅ Working — 700+ row exports |
 | **Free Camera 1.7.0** | ✅ Working |
 | **3D-LiveActionCam 2.1.1** (Event Cam) | ✅ Working — custom cams load, Harmony patches apply |
@@ -39,6 +40,7 @@ Anything using standard BepInEx APIs (`RegisterTypeInIl2Cpp`, Harmony patches, c
 | `ClassInjector` cannot add MonoBehaviours on arm64 | **`ExportDriver`** driven by BepInEx `MainThreadTick` |
 | **Other mods** using `ClassInjector.RegisterTypeInIl2Cpp` die with `GenericMethod::GetMethod not found` | Patched **Il2CppInterop** with a native **arm64 xref scanner** (upstream uses an x86-only decoder) — see `docs/il2cppinterop-arm64.patch` |
 | Game quits cleanly at the main menu (no crash report), log ends with `[S_API FAIL] … before SteamAPI_Init succeeded` | Launcher exports **`SteamAppId`/`SteamGameId`** from `steam_appid.txt` so the Steam handshake succeeds deterministically |
+| **16:10 / MacBook menus** leave empty space at the bottom; ultrawide has side gaps | Bundled **FM26 Display Fix** — scales UI Toolkit panels for non-16:9 (based on [fm26ultrawidefix](https://github.com/LionelFW/fm26ultrawidefix), extended for tall aspects) |
 | Virtualised list scroll overshoots | Scroll **one third of the viewport** per step |
 | Crashes around 300–400 exported rows | Configurable **`ScrollStepDelayFrames`** (default **18**) + error **retry** |
 | UITK “dirty repaint” mid-capture | Catch and retry instead of aborting |
@@ -159,6 +161,37 @@ Large lists take time: ~0.3 s per scroll step at default settings (657 rows ≈ 
 
 ## Configuration
 
+### FM26 Display Fix
+
+Installed automatically to `BepInEx/plugins/FM26DisplayFix/`. After first launch, edit:
+
+```
+Football Manager 26/BepInEx/config/com.tfpdev.fm26displayfix.cfg
+```
+
+```ini
+[General]
+Enabled = true
+# Force native display aspect (fixes macOS letterboxing on 16:10 MacBooks)
+ForceNativeAspect = true
+
+[Resolution]
+# Override render size in pixels (0 = auto-detect; set both if auto is wrong)
+Width = 0
+Height = 0
+
+[Patches]
+# Correct match-engine camera aspect on non-16:9 displays
+PatchMatchCamera = true
+
+# UI element names excluded from layout expansion (comma-separated; Prefix* wildcards)
+SkipExpansionElements = ModalDialog,GenericModalDialog,Card,ExternalNewsDynamicCard
+```
+
+Set `Enabled = false` to disable without uninstalling. Delete the `.cfg` to regenerate defaults.
+
+### FM26 Player Export
+
 After the first export, edit:
 
 ```
@@ -188,7 +221,7 @@ export FM26_GAME="/path/to/Football Manager 26"
 export FM26_BEP="$HOME/fm26_bep"   # interop cache from a prior BepInEx boot
 
 bash build_plugin.sh
-cp plugin/bin/Release/net6.0/FM26PlayerExport.dll dist/FM26PlayerExport.dll
+bash build_displayfix.sh
 bash install_macos.sh
 ```
 

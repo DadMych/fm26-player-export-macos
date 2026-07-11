@@ -36,6 +36,13 @@ under its own license), with these assemblies modified by us:
 `libdobby.arm64.dylib` is from the [Dobby](https://github.com/jmpews/Dobby)
 hooking library. Check its license before redistributing.
 
+## FM26 Display Fix
+
+The bundled **FM26 Display Fix** plugin extends ideas from
+[LionelFW/fm26ultrawidefix](https://github.com/LionelFW/fm26ultrawidefix)
+(ultrawide menu scaling) with additional **16:10 / tall-aspect** support for
+MacBook displays. Source: `plugin_displayfix/`.
+
 ## Il2Cpp interop assemblies
 
 Generated interop DLLs under `~/fm26_bep/interop/` are **not** shipped here.

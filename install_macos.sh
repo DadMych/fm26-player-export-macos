@@ -65,14 +65,25 @@ find "$GAME/BepInEx" -name "._*" -delete 2>/dev/null || true
 echo "   installed $(ls "$HERE/dist/bepinex-core" | wc -l | tr -d ' ') core files"
 
 echo ""
-echo "== 3/4 Export plugin =="
+echo "== 3/5 Export plugin =="
 PLUGIN_DEST="$GAME/BepInEx/plugins/FM26PlayerExport"
 mkdir -p "$PLUGIN_DEST"
 cp "$HERE/dist/FM26PlayerExport.dll" "$PLUGIN_DEST/FM26PlayerExport.dll"
 echo "   installed $PLUGIN_DEST/FM26PlayerExport.dll"
 
 echo ""
-echo "== 4/4 TFP view presets (optional) =="
+echo "== 4/5 Display Fix plugin (16:10 + ultrawide menus) =="
+if [ -f "$HERE/dist/FM26DisplayFix.dll" ]; then
+  DISPLAY_DEST="$GAME/BepInEx/plugins/FM26DisplayFix"
+  mkdir -p "$DISPLAY_DEST"
+  cp "$HERE/dist/FM26DisplayFix.dll" "$DISPLAY_DEST/FM26DisplayFix.dll"
+  echo "   installed $DISPLAY_DEST/FM26DisplayFix.dll"
+else
+  echo "   skipped (run build_displayfix.sh first)"
+fi
+
+echo ""
+echo "== 5/5 TFP view presets (optional) =="
 VIEWS_DEST="$HOME/Library/Application Support/Sports Interactive/Football Manager 26/views"
 if [ -d "$HERE/views" ]; then
   mkdir -p "$VIEWS_DEST"
