@@ -295,7 +295,8 @@ FM26_GAME="/path/to/Football Manager 26" bash install_macos.sh
 | Export finishes early | Scroll the list manually before F9; ensure rows are selected |
 | Empty / `-` attributes | Use a view with full attribute columns |
 | `No space left on device` | BepInEx cannot flush logs or write CSV — free several GB |
-| **Black bars** on all sides, or menus still have empty gaps | Display Fix not loaded — check `LogOutput.log` for `FM26 Display Fix loaded`. Re-run `install_macos.sh`. If loaded but wrong size, set `Width`/`Height` in `com.tfpdev.fm26displayfix.cfg` (see [FM26 Display Fix](#fm26-display-fix)). |
+| **Black bars** on all sides (letterboxing), Display Fix never loads | Steam is probably launching via stock `run_bepinex.sh` (Rosetta/x86) instead of **`run_bepinex_arm64.sh`**. In `LogOutput.log` you'll see `Process bitness: 64-bit (x64)` and the log stops at `Loading [3D-LiveActionCam]` — `FM26 Display Fix loaded` never appears. Fix: `FM26_GAME="/path/to/Football Manager 26" bash scripts/configure_steam.sh` (quits Steam, sets launch options), then relaunch from Steam. Verify log shows `Process bitness: 64-bit (ARM64)` and `FM26 Display Fix loaded`. |
+| **Black bars** but Display Fix *is* loaded | Set `Width`/`Height` in `com.tfpdev.fm26displayfix.cfg` (see [FM26 Display Fix](#fm26-display-fix)), or re-run `install_macos.sh`. |
 | Display Fix loads but UI looks cropped/offset | Known quirk on some screens — add element names to `SkipExpansionElements` or disable with `Enabled = false` and report in an issue |
 | macOS blocks BepInEx / “damaged” dylib warnings | Re-run `install_macos.sh` (clears quarantine), or manually: `xattr -dr com.apple.quarantine "$FM26_GAME/BepInEx" "$FM26_GAME/libdoorstop.dylib"` |
 | Steam still launches without mods | Re-run `bash scripts/configure_steam.sh` with `FM26_GAME` set (it quits Steam first), or set launch options manually in FM26 Properties |
