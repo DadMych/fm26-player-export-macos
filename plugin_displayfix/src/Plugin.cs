@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace FM26DisplayFix;
 
-[BepInPlugin("com.tfpdev.fm26displayfix", "FM26 Display Fix", "1.0.2")]
+[BepInPlugin("com.tfpdev.fm26displayfix", "FM26 Display Fix", "1.1.1")]
 public class Plugin : BasePlugin
 {
     internal static new ManualLogSource Log = null!;
