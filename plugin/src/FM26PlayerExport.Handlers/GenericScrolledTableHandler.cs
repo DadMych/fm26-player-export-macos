@@ -26,6 +26,8 @@ public abstract class GenericScrolledTableHandler : IExportHandler
 
 	protected List<string> _captureHeaders;
 
+	private List<string> _captureRowHeaders;
+
 	private HashSet<string> _seenKeys;
 
 	private float _lastScrollY;
@@ -181,6 +183,8 @@ public abstract class GenericScrolledTableHandler : IExportHandler
 			errorMessage = "[FM26Export] Tabela encontrada, mas rejeitada pelo handler generico/filho. Headers: " + string.Join(", ", (global::System.Collections.Generic.IEnumerable<string>)_captureHeaders);
 			return false;
 		}
+		_captureRowHeaders = new List<string>(_captureHeaders);
+		_captureHeaders = BuildExportHeaders(_captureRowHeaders);
 		ManualLogSource log = Plugin.Log;
 		bool flag = default(bool);
 		BepInExInfoLogInterpolatedStringHandler val7 = new BepInExInfoLogInterpolatedStringHandler(25, 2, out flag);
@@ -278,7 +282,7 @@ public abstract class GenericScrolledTableHandler : IExportHandler
 					continue;
 				}
 				bool flag2 = !_diagLogged && _scrollAttempts == 0 && num == 0;
-				List<string> val2 = ReadRow(val, flag2, _captureHeaders);
+				List<string> val2 = ReadRow(val, flag2, _captureRowHeaders);
 				if (flag2)
 				{
 					_diagLogged = true;
@@ -490,6 +494,10 @@ public abstract class GenericScrolledTableHandler : IExportHandler
 		if (_captureHeaders != null)
 		{
 			_captureHeaders.Clear();
+		}
+		if (_captureRowHeaders != null)
+		{
+			_captureRowHeaders.Clear();
 		}
 		if (_seenKeys != null)
 		{
@@ -722,6 +730,9 @@ public abstract class GenericScrolledTableHandler : IExportHandler
 		{
 			return val;
 		}
+		StarRatingResult worldReputationStars = null;
+		StarRatingResult abilityStars = null;
+		StarRatingResult potentialStars = null;
 		VisualElement val2 = row.ElementAt(0);
 		if (val2.childCount == 1 && val2.ElementAt(0).childCount > 1)
 		{
@@ -743,6 +754,7 @@ public abstract class GenericScrolledTableHandler : IExportHandler
 		for (int i = 1; i < val2.childCount; i++)
 		{
 			VisualElement val3 = val2.ElementAt(i);
+			string header = (headers != null && i - 1 < headers.Count) ? headers[i - 1] : null;
 			string text;
 			if (i == 1)
 			{
@@ -771,16 +783,68 @@ public abstract class GenericScrolledTableHandler : IExportHandler
 				text = UIUtils.CollectFirstText(val3) ?? string.Empty;
 				if (string.IsNullOrEmpty(text))
 				{
-					string text2 = UIUtils.TryReadStars(val3);
-					if (text2 != null)
+					StarRatingResult starRating = UIUtils.TryReadStarRating(val3);
+					if (starRating != null)
 					{
-						text = text2;
+						text = UIUtils.FormatStarRating(starRating.DisplayedStars, blankWhenZero: true);
+						if (header == "World Reputation")
+						{
+							worldReputationStars = starRating;
+						}
+						else if (header == "Ability")
+						{
+							abilityStars = starRating;
+						}
+						else if (header == "Potential")
+						{
+							potentialStars = starRating;
+						}
 					}
 				}
 			}
 			val.Add(text);
 		}
-		return val;
+		return AddStarComponentValues(headers, val, worldReputationStars, abilityStars, potentialStars);
+	}
+
+	private static List<string> BuildExportHeaders(List<string> rowHeaders)
+	{
+		List<string> headers = new List<string>();
+		foreach (string header in rowHeaders)
+		{
+			headers.Add(header);
+			if (header == "World Reputation" || header == "Ability" || header == "Potential")
+			{
+				headers.Add(header + " Gold");
+				headers.Add(header + " Silver");
+			}
+		}
+		return headers;
+	}
+
+	private static List<string> AddStarComponentValues(List<string> rowHeaders, List<string> values, StarRatingResult worldReputationStars, StarRatingResult abilityStars, StarRatingResult potentialStars)
+	{
+		List<string> result = new List<string>();
+		for (int i = 0; i < values.Count; i++)
+		{
+			result.Add(values[i]);
+			if (i >= rowHeaders.Count)
+			{
+				continue;
+			}
+			StarRatingResult rating = rowHeaders[i] == "World Reputation" ? worldReputationStars : ((rowHeaders[i] == "Ability") ? abilityStars : ((rowHeaders[i] == "Potential") ? potentialStars : null));
+			if (rating != null || rowHeaders[i] == "World Reputation" || rowHeaders[i] == "Ability" || rowHeaders[i] == "Potential")
+			{
+				result.Add(FormatStarComponent(rating, gold: true));
+				result.Add(FormatStarComponent(rating, gold: false));
+			}
+		}
+		return result;
+	}
+
+	private static string FormatStarComponent(StarRatingResult rating, bool gold)
+	{
+		return rating == null ? string.Empty : UIUtils.FormatStarRating(gold ? rating.GoldStars : rating.SilverStars, blankWhenZero: false);
 	}
 
 	private void FindAllByName(VisualElement root, string name, List<VisualElement> results)
