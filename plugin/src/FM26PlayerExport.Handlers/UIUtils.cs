@@ -254,82 +254,55 @@ public static class UIUtils
 		}
 	}
 
-	public static string TryReadStars(VisualElement cell)
+	public static StarRatingResult TryReadStarRating(VisualElement cell)
 	{
-		try
-		{
-			string tooltip = cell.tooltip;
-			double num = default(double);
-			if (!string.IsNullOrEmpty(tooltip) && double.TryParse(tooltip, out num))
-			{
-				return tooltip;
-			}
-		}
-		catch
-		{
-		}
-		int filled = 0;
-		int half = 0;
-		int total = 0;
-		CountStars(cell, ref filled, ref half, ref total, 0);
-		if (total == 0)
+		List<List<string>> starClassLists = new List<List<string>>();
+		CollectStarClassLists(cell, starClassLists, 0);
+		if (starClassLists.Count == 0)
 		{
 			return null;
 		}
-		float num2 = (float)filled + (float)half * 0.5f;
-		if (num2 <= 0f)
+		if (!StarRatingParser.TryParseRating(starClassLists, out StarRatingResult rating))
+		{
+			Plugin.Log.LogWarning((object)("[FM26Export] Unrecognised star cell structure; exporting blank. Classes: " + string.Join(" | ", starClassLists.ConvertAll((List<string> classes) => string.Join(",", classes)))));
+			return null;
+		}
+		return rating;
+	}
+
+	public static string FormatStarRating(float rating, bool blankWhenZero)
+	{
+		if (blankWhenZero && rating <= 0f)
 		{
 			return string.Empty;
 		}
-		return num2.ToString("0.#", (IFormatProvider)(object)CultureInfo.InvariantCulture).Replace(".", ",");
+		return rating.ToString("0.#", (IFormatProvider)(object)CultureInfo.InvariantCulture).Replace(".", ",");
 	}
 
-	private static void CountStars(VisualElement el, ref int filled, ref int half, ref int total, int d)
+	private static void CollectStarClassLists(VisualElement element, List<List<string>> starClassLists, int depth)
 	{
-		if (el == null || d > 12)
+		if (element == null || depth > 12)
 		{
 			return;
 		}
 		try
 		{
-			bool flag = false;
-			bool flag2 = false;
-			bool flag3 = false;
-			for (int i = 0; i < el.classList.Count; i++)
+			List<string> classes = new List<string>();
+			for (int i = 0; i < element.classList.Count; i++)
 			{
-				string text = el.classList[i].ToLower();
-				if (text.Contains("star") || text.Contains("ability") || text.Contains("rating"))
-				{
-					flag = true;
-				}
-				if (text.Contains("filled") || text.Contains("active") || text.Contains("full") || text.Contains("on"))
-				{
-					flag2 = true;
-				}
-				if (text.Contains("half"))
-				{
-					flag3 = true;
-				}
+				classes.Add(element.classList[i]);
 			}
-			if (flag && el.childCount == 0)
+			if (element.childCount == 0 && StarRatingParser.Classify(classes) != StarVisualState.NotStar)
 			{
-				total++;
-				if (flag3)
-				{
-					half++;
-				}
-				else if (flag2)
-				{
-					filled++;
-				}
+				starClassLists.Add(classes);
 			}
 		}
 		catch
 		{
 		}
-		for (int j = 0; j < el.childCount; j++)
+		for (int j = 0; j < element.childCount; j++)
 		{
-			CountStars(el.ElementAt(j), ref filled, ref half, ref total, d + 1);
+			CollectStarClassLists(element.ElementAt(j), starClassLists, depth + 1);
 		}
 	}
 
