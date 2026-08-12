@@ -747,7 +747,7 @@ public abstract class GenericScrolledTableHandler : IExportHandler
 			if (i == 1)
 			{
 				List<string> val4 = new List<string>();
-				UIUtils.CollectAllTexts(val3, val4);
+				UIUtils.CollectAllTexts(val3, val4, 0, allowRenderedTextFallback: false, allowTooltipFallback: false);
 				text = string.Empty;
 				var enumerator = val4.GetEnumerator();
 				try
@@ -768,7 +768,7 @@ public abstract class GenericScrolledTableHandler : IExportHandler
 			}
 			else
 			{
-				text = UIUtils.CollectFirstText(val3) ?? string.Empty;
+				text = UIUtils.CollectFirstText(val3, 0, allowRenderedTextFallback: false, allowTooltipFallback: false) ?? string.Empty;
 				if (string.IsNullOrEmpty(text))
 				{
 					string text2 = UIUtils.TryReadStars(val3);

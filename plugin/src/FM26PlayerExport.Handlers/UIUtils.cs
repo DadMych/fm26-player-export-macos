@@ -77,7 +77,7 @@ public static class UIUtils
 		return key;
 	}
 
-	public static string GetText(VisualElement el)
+	public static string GetText(VisualElement el, bool allowRenderedTextFallback = true, bool allowTooltipFallback = true)
 	{
 		if (el == null)
 		{
@@ -107,16 +107,19 @@ public static class UIUtils
 		{
 		}
 		// Last resort: the string UITK actually rendered.
-		try
+		if (allowRenderedTextFallback)
 		{
-			TextElement te = ((Il2CppObjectBase)el).TryCast<TextElement>();
-			if (te != null && !string.IsNullOrWhiteSpace(te.m_RenderedText))
+			try
 			{
-				return StripHtml(te.m_RenderedText.Trim());
+				TextElement te = ((Il2CppObjectBase)el).TryCast<TextElement>();
+				if (te != null && !string.IsNullOrWhiteSpace(te.m_RenderedText))
+				{
+					return StripHtml(te.m_RenderedText.Trim());
+				}
 			}
-		}
-		catch
-		{
+			catch
+			{
+			}
 		}
 		try
 		{
@@ -129,16 +132,19 @@ public static class UIUtils
 		catch
 		{
 		}
-		try
+		if (allowTooltipFallback)
 		{
-			string tooltip = el.tooltip;
-			if (!string.IsNullOrWhiteSpace(tooltip))
+			try
 			{
-				return StripHtml(tooltip.Trim());
+				string tooltip = el.tooltip;
+				if (!string.IsNullOrWhiteSpace(tooltip))
+				{
+					return StripHtml(tooltip.Trim());
+				}
 			}
-		}
-		catch
-		{
+			catch
+			{
+			}
 		}
 		return null;
 	}
@@ -152,20 +158,20 @@ public static class UIUtils
 		return s;
 	}
 
-	public static string CollectFirstText(VisualElement el, int d = 0)
+	public static string CollectFirstText(VisualElement el, int d = 0, bool allowRenderedTextFallback = true, bool allowTooltipFallback = true)
 	{
 		if (el == null || d > 20)
 		{
 			return null;
 		}
-		string text = GetText(el);
+		string text = GetText(el, allowRenderedTextFallback, allowTooltipFallback);
 		if (text != null)
 		{
 			return text;
 		}
 		for (int i = 0; i < el.childCount; i++)
 		{
-			string text2 = CollectFirstText(el.ElementAt(i), d + 1);
+			string text2 = CollectFirstText(el.ElementAt(i), d + 1, allowRenderedTextFallback, allowTooltipFallback);
 			if (text2 != null)
 			{
 				return text2;
@@ -202,46 +208,49 @@ public static class UIUtils
 		return null;
 	}
 
-	public static string CollectAllTextsJoined(VisualElement el, int d = 0)
+	public static string CollectAllTextsJoined(VisualElement el, int d = 0, bool allowRenderedTextFallback = true, bool allowTooltipFallback = true)
 	{
 		if (el == null || d > 20)
 		{
 			return "";
 		}
 		List<string> val = new List<string>();
-		CollectAllTexts(el, val);
+		CollectAllTexts(el, val, 0, allowRenderedTextFallback, allowTooltipFallback);
 		return string.Join(" ", (global::System.Collections.Generic.IEnumerable<string>)val).Trim();
 	}
 
-	public static void CollectAllTexts(VisualElement el, List<string> out_, int d = 0)
+	public static void CollectAllTexts(VisualElement el, List<string> out_, int d = 0, bool allowRenderedTextFallback = true, bool allowTooltipFallback = true)
 	{
 		if (el == null || d > 20)
 		{
 			return;
 		}
-		string text = GetText(el);
+		string text = GetText(el, allowRenderedTextFallback, allowTooltipFallback);
 		if (text != null && !out_.Contains(text))
 		{
 			out_.Add(text);
 		}
-		try
+		if (allowTooltipFallback)
 		{
-			string tooltip = el.tooltip;
-			if (!string.IsNullOrWhiteSpace(tooltip))
+			try
 			{
-				string text2 = StripHtml(tooltip.Trim());
-				if (!out_.Contains(text2))
+				string tooltip = el.tooltip;
+				if (!string.IsNullOrWhiteSpace(tooltip))
 				{
-					out_.Add(text2);
+					string text2 = StripHtml(tooltip.Trim());
+					if (!out_.Contains(text2))
+					{
+						out_.Add(text2);
+					}
 				}
 			}
-		}
-		catch
-		{
+			catch
+			{
+			}
 		}
 		for (int i = 0; i < el.childCount; i++)
 		{
-			CollectAllTexts(el.ElementAt(i), out_, d + 1);
+			CollectAllTexts(el.ElementAt(i), out_, d + 1, allowRenderedTextFallback, allowTooltipFallback);
 		}
 	}
 
