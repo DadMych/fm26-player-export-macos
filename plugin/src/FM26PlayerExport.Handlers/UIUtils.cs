@@ -257,7 +257,7 @@ public static class UIUtils
 	public static StarRatingResult TryReadStarRating(VisualElement cell)
 	{
 		List<List<string>> starClassLists = new List<List<string>>();
-		CollectStarClassLists(cell, starClassLists, 0);
+		CollectStarClassLists(cell, cell, starClassLists, 0);
 		if (starClassLists.Count == 0)
 		{
 			return null;
@@ -279,12 +279,45 @@ public static class UIUtils
 		return rating.ToString("0.#", (IFormatProvider)(object)CultureInfo.InvariantCulture).Replace(".", ",");
 	}
 
-	private static void CollectStarClassLists(VisualElement element, List<List<string>> starClassLists, int depth)
+	private static bool IsVisibleForStarRead(VisualElement element, VisualElement cell)
+	{
+		VisualElement current = element;
+		while (current != null)
+		{
+			try
+			{
+				if (current.resolvedStyle.display == DisplayStyle.None
+					|| current.resolvedStyle.visibility == Visibility.Hidden
+					|| current.resolvedStyle.opacity <= 0f)
+				{
+					return false;
+				}
+			}
+			catch
+			{
+			}
+
+			if (current == cell)
+			{
+				break;
+			}
+			current = current.parent;
+		}
+		return true;
+	}
+
+	private static void CollectStarClassLists(VisualElement element, VisualElement cell, List<List<string>> starClassLists, int depth)
 	{
 		if (element == null || depth > 12)
 		{
 			return;
 		}
+
+		if (!IsVisibleForStarRead(element, cell))
+		{
+			return;
+		}
+
 		try
 		{
 			List<string> classes = new List<string>();
@@ -300,9 +333,10 @@ public static class UIUtils
 		catch
 		{
 		}
+
 		for (int j = 0; j < element.childCount; j++)
 		{
-			CollectStarClassLists(element.ElementAt(j), starClassLists, depth + 1);
+			CollectStarClassLists(element.ElementAt(j), cell, starClassLists, depth + 1);
 		}
 	}
 
