@@ -730,9 +730,6 @@ public abstract class GenericScrolledTableHandler : IExportHandler
 		{
 			return val;
 		}
-		StarRatingResult worldReputationStars = null;
-		StarRatingResult abilityStars = null;
-		StarRatingResult potentialStars = null;
 		VisualElement val2 = row.ElementAt(0);
 		if (val2.childCount == 1 && val2.ElementAt(0).childCount > 1)
 		{
@@ -786,65 +783,40 @@ public abstract class GenericScrolledTableHandler : IExportHandler
 					StarRatingResult starRating = UIUtils.TryReadStarRating(val3);
 					if (starRating != null)
 					{
-						text = UIUtils.FormatStarRating(starRating.DisplayedStars, blankWhenZero: true);
-						if (header == "World Reputation")
-						{
-							worldReputationStars = starRating;
-						}
-						else if (header == "Ability")
-						{
-							abilityStars = starRating;
-						}
-						else if (header == "Potential")
-						{
-							potentialStars = starRating;
-						}
+						text = IsComponentStarHeader(header)
+							? FormatStarComponents(starRating)
+							: UIUtils.FormatStarRating(starRating.DisplayedStars, blankWhenZero: true);
 					}
 				}
 			}
 			val.Add(text);
 		}
-		return AddStarComponentValues(headers, val, worldReputationStars, abilityStars, potentialStars);
+		return val;
 	}
 
 	private static List<string> BuildExportHeaders(List<string> rowHeaders)
 	{
-		List<string> headers = new List<string>();
-		foreach (string header in rowHeaders)
-		{
-			headers.Add(header);
-			if (header == "World Reputation" || header == "Ability" || header == "Potential")
-			{
-				headers.Add(header + " Gold");
-				headers.Add(header + " Silver");
-			}
-		}
-		return headers;
+		return new List<string>(rowHeaders);
 	}
 
-	private static List<string> AddStarComponentValues(List<string> rowHeaders, List<string> values, StarRatingResult worldReputationStars, StarRatingResult abilityStars, StarRatingResult potentialStars)
+	private static bool IsComponentStarHeader(string header)
 	{
-		List<string> result = new List<string>();
-		for (int i = 0; i < values.Count; i++)
-		{
-			result.Add(values[i]);
-			if (i >= rowHeaders.Count)
-			{
-				continue;
-			}
-			StarRatingResult rating = rowHeaders[i] == "World Reputation" ? worldReputationStars : ((rowHeaders[i] == "Ability") ? abilityStars : ((rowHeaders[i] == "Potential") ? potentialStars : null));
-			if (rating != null || rowHeaders[i] == "World Reputation" || rowHeaders[i] == "Ability" || rowHeaders[i] == "Potential")
-			{
-				result.Add(FormatStarComponent(rating, gold: true));
-				result.Add(FormatStarComponent(rating, gold: false));
-			}
-		}
-		return result;
+		return header == "Ability"
+			|| header == "Potential"
+			|| header == "Role Ability"
+			|| header == "Role Ability Out Of Possession";
 	}
 
-	private static string FormatStarComponent(StarRatingResult rating, bool gold)
+	private static string FormatStarComponents(StarRatingResult rating)
 	{
-		return rating == null ? string.Empty : UIUtils.FormatStarRating(gold ? rating.GoldStars : rating.SilverStars, blankWhenZero: false);
+		if (rating == null)
+		{
+			return string.Empty;
+		}
+
+		string gold = UIUtils.FormatStarRating(rating.GoldStars, blankWhenZero: false);
+		string silver = UIUtils.FormatStarRating(rating.SilverStars, blankWhenZero: false);
+		return gold + " (" + silver + ")";
 	}
 
 	private void FindAllByName(VisualElement root, string name, List<VisualElement> results)

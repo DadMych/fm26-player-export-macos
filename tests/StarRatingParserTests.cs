@@ -13,6 +13,10 @@ internal static class StarRatingParserTests
 
 	private static readonly string[] SilverFullMinimum = { "ability-minimum-potential-level-full-youth-false", "fm-star-rating-star" };
 
+	private static readonly string[] GoldSilverHalf = { "ability-half-potential-level-half-youth-false", "fm-star-rating-star" };
+
+	private static readonly string[] SilverHalfPotential = { "ability-minimum-potential-level-half-youth-false", "fm-star-rating-star" };
+
 	private static readonly string[] Empty = { "ability-minimum-potential-level-none-youth-false", "fm-star-rating-star" };
 
 	private static readonly string[] FinalEmpty = { "ability-minimum-potential-level-none-youth-false", "fm-star-rating-star-no-margin" };
@@ -28,6 +32,8 @@ internal static class StarRatingParserTests
 		AssertRating("silver-only 4.0", 0f, 4f, SilverFullYouth, SilverFullYouth, SilverFullMinimum, SilverFullMinimum, FinalEmpty);
 		AssertRating("mixed 2.5 gold + 2.0 silver", 2.5f, 2f, GoldFull, GoldFull, GoldHalf, SilverFullMinimum, SilverFullMinimum);
 		AssertRating("mixed 3.0 gold + 1.5 silver", 3f, 1.5f, GoldFull, GoldFull, GoldFull, SilverFullMinimum, SilverHalf);
+		AssertRating("mixed potential 2.5 gold + 1.0 silver", 2.5f, 1f, GoldFull, GoldFull, GoldSilverHalf, SilverHalfPotential, FinalEmpty);
+		AssertRating("mixed potential 1.5 gold + 1.0 silver", 1.5f, 1f, GoldFull, GoldSilverHalf, SilverHalfPotential, Empty, FinalEmpty);
 		AssertRating("five gold", 5f, 0f, GoldFull, GoldFull, GoldFull, GoldFull, GoldFull);
 		AssertRating("unrelated descendants", 1.5f, 0f, GoldFull, GoldHalf, Empty, Empty, FinalEmpty, Unrelated);
 		AssertInvalid("unknown star", new[] { "fm-star-rating-star", "condition", "on" }, Empty, Empty, Empty, FinalEmpty);

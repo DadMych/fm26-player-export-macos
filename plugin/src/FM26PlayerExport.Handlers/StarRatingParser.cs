@@ -11,6 +11,7 @@ public enum StarVisualState
 	GoldFull,
 	SilverHalf,
 	SilverFull,
+	GoldSilverHalf,
 	Unknown
 }
 
@@ -50,6 +51,10 @@ public static class StarRatingParser
 
 	private const string SilverFullMinimumClass = "ability-minimum-potential-level-full-youth-false";
 
+	private const string GoldSilverHalfClass = "ability-half-potential-level-half-youth-false";
+
+	private const string SilverHalfPotentialClass = "ability-minimum-potential-level-half-youth-false";
+
 	private const string EmptyClass = "ability-minimum-potential-level-none-youth-false";
 
 	private const string EmptyYouthClass = "ability-minimum-potential-level-none-youth-true";
@@ -72,6 +77,8 @@ public static class StarRatingParser
 				SilverFullYouthClass => StarVisualState.SilverFull,
 				SilverHalfClass => StarVisualState.SilverHalf,
 				SilverFullMinimumClass => StarVisualState.SilverFull,
+				GoldSilverHalfClass => StarVisualState.GoldSilverHalf,
+				SilverHalfPotentialClass => StarVisualState.SilverHalf,
 				EmptyClass => StarVisualState.Empty,
 				EmptyYouthClass => StarVisualState.Empty,
 				_ => StarVisualState.NotStar
@@ -114,6 +121,12 @@ public static class StarRatingParser
 				}
 				starCount++;
 				goldStars += state == StarVisualState.GoldFull ? 1f : 0.5f;
+				break;
+			case StarVisualState.GoldSilverHalf:
+				starCount++;
+				goldStars += 0.5f;
+				silverStars += 0.5f;
+				sawSilver = true;
 				break;
 			case StarVisualState.SilverFull:
 			case StarVisualState.SilverHalf:
